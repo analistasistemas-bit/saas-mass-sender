@@ -344,6 +344,13 @@ def login_action(request: Request, password: str = Form(...)):
     return response
 
 
+@app.post('/logout')
+def logout():
+    response = RedirectResponse(url='/login', status_code=303)
+    response.delete_cookie(SESSION_COOKIE)
+    return response
+
+
 @app.get('/', response_class=HTMLResponse, dependencies=[Depends(require_auth)])
 def index(request: Request, db: Session = Depends(get_db)):
     campaigns = db.scalars(select(Campaign).order_by(Campaign.created_at.desc())).all()

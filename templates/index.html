@@ -37,10 +37,72 @@
   <body class="min-h-screen bg-shell text-ink">
     <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-8 lg:px-8" data-ops-page="index">
 
-      <header class="space-y-1">
-        <h1 class="text-2xl font-bold tracking-tight text-ink">Campanhas</h1>
-        <p class="text-sm text-muted">Conecte o WhatsApp, prepare campanhas e acompanhe cada envio.</p>
+      <header class="flex items-start justify-between gap-4">
+        <div class="space-y-1">
+          <h1 class="text-2xl font-bold tracking-tight text-ink">Campanhas</h1>
+          <p class="text-sm text-muted">Conecte o WhatsApp, prepare campanhas e acompanhe cada envio.</p>
+        </div>
+
+        <div class="relative" id="user-menu-wrap">
+          <button
+            type="button"
+            id="user-menu-btn"
+            class="flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink shadow-panel transition hover:border-brand/40 hover:bg-gray-50"
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">A</span>
+            <span>Admin</span>
+            <svg class="h-4 w-4 text-muted transition-transform" id="user-menu-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+            </svg>
+          </button>
+
+          <div
+            id="user-menu-dropdown"
+            class="absolute right-0 z-20 mt-1 hidden w-44 rounded-lg border border-line bg-white py-1 shadow-lg"
+            role="menu"
+          >
+            <div class="border-b border-line px-3 py-2">
+              <p class="text-xs text-muted">Logado como</p>
+              <p class="text-sm font-semibold text-ink">Admin</p>
+            </div>
+            <form method="post" action="/logout">
+              <button
+                type="submit"
+                class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger transition hover:bg-red-50"
+                role="menuitem"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M3 4.25A2.25 2.25 0 0 1 5.25 2h5.5A2.25 2.25 0 0 1 13 4.25v2a.75.75 0 0 1-1.5 0v-2a.75.75 0 0 0-.75-.75h-5.5a.75.75 0 0 0-.75.75v11.5c0 .414.336.75.75.75h5.5a.75.75 0 0 0 .75-.75v-2a.75.75 0 0 1 1.5 0v2A2.25 2.25 0 0 1 10.75 18h-5.5A2.25 2.25 0 0 1 3 15.75V4.25Z" clip-rule="evenodd" />
+                  <path fill-rule="evenodd" d="M6 10a.75.75 0 0 1 .75-.75h9.546l-1.048-.943a.75.75 0 1 1 1.004-1.114l2.5 2.25a.75.75 0 0 1 0 1.114l-2.5 2.25a.75.75 0 1 1-1.004-1.114l1.048-.943H6.75A.75.75 0 0 1 6 10Z" clip-rule="evenodd" />
+                </svg>
+                Sair
+              </button>
+            </form>
+          </div>
+        </div>
       </header>
+
+      <script>
+        (function () {
+          const btn = document.getElementById('user-menu-btn');
+          const dropdown = document.getElementById('user-menu-dropdown');
+          const chevron = document.getElementById('user-menu-chevron');
+          btn.addEventListener('click', function () {
+            const open = dropdown.classList.toggle('hidden');
+            btn.setAttribute('aria-expanded', String(!open));
+            chevron.style.transform = open ? '' : 'rotate(180deg)';
+          });
+          document.addEventListener('click', function (e) {
+            if (!document.getElementById('user-menu-wrap').contains(e.target)) {
+              dropdown.classList.add('hidden');
+              btn.setAttribute('aria-expanded', 'false');
+              chevron.style.transform = '';
+            }
+          });
+        })();
+      </script>
 
       <section class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <article class="rounded-xl border border-line bg-white p-5">
