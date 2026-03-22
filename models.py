@@ -30,6 +30,8 @@ class Campaign(Base):
     batch_shrink_step: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     batch_shrink_error_streak_required: Mapped[int] = mapped_column(Integer, default=2, nullable=False)
     batch_size_floor: Mapped[int] = mapped_column(Integer, default=5, nullable=False)
+    send_window_start_hour: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
+    send_window_end_hour: Mapped[int] = mapped_column(Integer, default=20, nullable=False)
     daily_limit: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     sent_today: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     last_send_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

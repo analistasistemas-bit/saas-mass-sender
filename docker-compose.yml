@@ -1,0 +1,46 @@
+services:
+  wa-bridge:
+    build: ./wa-bridge
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Dentro do container a bridge ouve em todas as interfaces da rede Docker interna
+      - WA_BRIDGE_HOST=0.0.0.0
+    volumes:
+      # Sessao do WhatsApp persiste aqui — NAO apagar entre deploys
+      - wa_sessions:/app/.wwebjs_auth
+    networks:
+      - internal
+    # Chromium precisa de memoria compartilhada suficiente
+    shm_size: 1gb
+    security_opt:
+      # Necessario para Chromium headless funcionar dentro de container
+      - seccomp=unconfined
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Dentro da rede Docker, o wa-bridge eh acessivel pelo nome do servico
+      - WA_BRIDGE_BASE_URL=http://wa-bridge:3010
+      # Banco de dados dentro do volume persistente
+      - DB_PATH=/data/app.db
+    ports:
+      # Expoe APENAS no loopback do host — o OpenClaw/Nginx faz o proxy publico
+      - "127.0.0.1:8000:8000"
+    volumes:
+      # Banco SQLite persiste aqui entre deploys e reinicializacoes
+      - app_data:/data
+    depends_on:
+      - wa-bridge
+    networks:
+      - internal
+
+volumes:
+  wa_sessions:   # Sessao WhatsApp (QR scan — persiste para sempre)
+  app_data:      # Banco de dados SQLite
+
+networks:
+  internal:
+    driver: bridge

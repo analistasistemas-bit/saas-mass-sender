@@ -4,18 +4,52 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Login - Mass Sender</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: '#111827',
+              muted: '#6b7280',
+              shell: '#f9fafb',
+              line: '#e5e7eb',
+              brand: '#3b82f6',
+              success: '#22c55e',
+              warn: '#f59e0b',
+              danger: '#ef4444',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
-  <body>
-    <main class="container">
-      <h1>Mass Sender</h1>
-      <p>Informe a senha administrativa.</p>
+  <body class="flex min-h-screen items-center justify-center bg-shell text-ink">
+    <main class="w-full max-w-sm rounded-xl border border-line bg-white p-6">
+      <h1 class="text-xl font-bold text-ink">Mass Sender</h1>
+      <p class="mt-1 text-sm text-muted">Informe a senha para acessar o painel.</p>
       {% if error %}
-      <div class="alert">{{ error }}</div>
+      <div class="mt-4 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{{ error }}</div>
       {% endif %}
-      <form method="post" action="/login" class="stack">
-        <input type="password" name="password" placeholder="Senha" required />
-        <button type="submit">Entrar</button>
+      <form method="post" action="/login" class="mt-6 space-y-4">
+        <label class="block space-y-1.5">
+          <span class="text-sm font-medium text-gray-700">Senha</span>
+          <input
+            type="password"
+            name="password"
+            required
+            placeholder="Digite sua senha"
+            class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+          />
+        </label>
+        <button type="submit" class="primary-button w-full justify-center">Entrar</button>
       </form>
     </main>
     <script src="/static/common.js"></script>

@@ -106,6 +106,8 @@ def ensure_campaign_operational_columns(target_engine: Engine) -> None:
         'batch_shrink_step': 'ALTER TABLE campaigns ADD COLUMN batch_shrink_step INTEGER NOT NULL DEFAULT 2',
         'batch_shrink_error_streak_required': 'ALTER TABLE campaigns ADD COLUMN batch_shrink_error_streak_required INTEGER NOT NULL DEFAULT 2',
         'batch_size_floor': 'ALTER TABLE campaigns ADD COLUMN batch_size_floor INTEGER NOT NULL DEFAULT 5',
+        'send_window_start_hour': 'ALTER TABLE campaigns ADD COLUMN send_window_start_hour INTEGER NOT NULL DEFAULT 8',
+        'send_window_end_hour': 'ALTER TABLE campaigns ADD COLUMN send_window_end_hour INTEGER NOT NULL DEFAULT 20',
         'daily_limit': 'ALTER TABLE campaigns ADD COLUMN daily_limit INTEGER NOT NULL DEFAULT 0',
         'sent_today': 'ALTER TABLE campaigns ADD COLUMN sent_today INTEGER NOT NULL DEFAULT 0',
         'last_send_date': 'ALTER TABLE campaigns ADD COLUMN last_send_date DATETIME',
@@ -132,6 +134,8 @@ def ensure_campaign_operational_columns(target_engine: Engine) -> None:
                     batch_shrink_step = COALESCE(batch_shrink_step, 2),
                     batch_shrink_error_streak_required = COALESCE(batch_shrink_error_streak_required, 2),
                     batch_size_floor = COALESCE(batch_size_floor, 5),
+                    send_window_start_hour = COALESCE(send_window_start_hour, 8),
+                    send_window_end_hour = COALESCE(send_window_end_hour, 20),
                     daily_limit = COALESCE(daily_limit, 0),
                     sent_today = COALESCE(sent_today, 0)
                 '''
@@ -366,7 +370,7 @@ def campaign_page(
     campaign_id: int,
     request: Request,
     page: int = Query(1, ge=1),
-    per_page: int = Query(25),
+    per_page: int = Query(10),
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
@@ -378,7 +382,7 @@ def campaign_page(
         runtime_batch_size=runtime_profile.get('batch_size'),
         service_health=engine_worker.service_health_snapshot(),
     )
-    page_size = per_page if per_page in {10, 25, 50} else 25
+    page_size = per_page if per_page in {10, 25, 50} else 10
     status_filter = (status or '').strip().lower()
     allowed_status = {'pending', 'processing', 'sent', 'failed', 'invalid'}
     if status_filter not in allowed_status:
@@ -416,12 +420,12 @@ def campaign_page(
 def campaign_contacts_route(
     campaign_id: int,
     page: int = Query(1, ge=1),
-    per_page: int = Query(25),
+    per_page: int = Query(10),
     status: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     get_campaign_or_404(db, campaign_id)
-    page_size = per_page if per_page in {10, 25, 50} else 25
+    page_size = per_page if per_page in {10, 25, 50} else 10
     status_filter = (status or '').strip().lower()
     allowed_status = {'pending', 'processing', 'sent', 'failed', 'invalid'}
     if status_filter not in allowed_status:
@@ -478,6 +482,8 @@ def update_campaign_settings_route(
     send_delay_max_seconds: int = Form(...),
     batch_pause_min_seconds: int = Form(5),
     batch_pause_max_seconds: int = Form(10),
+    send_window_start: str = Form('08:00'),
+    send_window_end: str = Form('20:00'),
     daily_limit: int = Form(...),
     db: Session = Depends(get_db),
 ):
@@ -490,6 +496,8 @@ def update_campaign_settings_route(
         speed_profile=speed_profile,
         batch_pause_min_seconds=batch_pause_min_seconds,
         batch_pause_max_seconds=batch_pause_max_seconds,
+        send_window_start=send_window_start,
+        send_window_end=send_window_end,
     )
     return JSONResponse({'ok': ok, 'message': message, 'settings': settings}, status_code=200 if ok else 400)
 
@@ -623,6 +631,8 @@ async def test_run_route(campaign_id: int, sample_size: int = Form(1), db: Sessi
 @app.post('/campaigns/{campaign_id}/restart', dependencies=[Depends(require_auth)])
 def restart_route(campaign_id: int, mode: str = Form(...), db: Session = Depends(get_db)):
     ok, message, reset_contacts, new_status = restart_campaign(db, campaign_id, mode)
+    if ok:
+        engine_worker.reset_campaign_runtime(campaign_id, hard=True)
     code = 200 if ok else 400
     return JSONResponse(
         {'ok': ok, 'message': message, 'reset_contacts': reset_contacts, 'new_status': new_status},
@@ -633,6 +643,8 @@ def restart_route(campaign_id: int, mode: str = Form(...), db: Session = Depends
 @app.post('/campaigns/{campaign_id}/start', dependencies=[Depends(require_auth)])
 def start_route(campaign_id: int, db: Session = Depends(get_db)):
     ok, message = start_campaign(db, campaign_id)
+    if ok:
+        engine_worker.reset_campaign_runtime(campaign_id)
     code = 200 if ok else 400
     return JSONResponse({'ok': ok, 'message': message}, status_code=code)
 
@@ -647,6 +659,8 @@ def pause_route(campaign_id: int, db: Session = Depends(get_db)):
 @app.post('/campaigns/{campaign_id}/resume', dependencies=[Depends(require_auth)])
 def resume_route(campaign_id: int, db: Session = Depends(get_db)):
     ok, message = resume_campaign(db, campaign_id)
+    if ok:
+        engine_worker.reset_campaign_runtime(campaign_id)
     code = 200 if ok else 400
     return JSONResponse({'ok': ok, 'message': message}, status_code=code)
 

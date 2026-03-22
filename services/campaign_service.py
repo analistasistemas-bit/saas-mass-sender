@@ -16,7 +16,6 @@ from utils.csv_parser import parse_csv_bytes
 from utils.daily_limit import daily_limit_reached
 from utils.message_compose import render_campaign_message
 from utils.phone import normalize_br_phone
-from utils.schedule_guard import SEND_HOUR_END, SEND_HOUR_START
 from utils.speed_profiles import (
     DEFAULT_SPEED_PROFILE,
     SPEED_PROFILE_PRESETS,
@@ -95,7 +94,24 @@ def update_campaign_operational_settings(
     speed_profile: str | None = None,
     batch_pause_min_seconds: int | None = None,
     batch_pause_max_seconds: int | None = None,
+    send_window_start: str | None = None,
+    send_window_end: str | None = None,
 ) -> tuple[bool, str, dict]:
+    def parse_window_hour(value: str | None, label: str) -> tuple[int | None, str | None]:
+        if value is None:
+            return None, None
+        raw = str(value).strip()
+        parts = raw.split(':')
+        if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
+            return None, f'{label} deve estar no formato HH:MM.'
+        hour = int(parts[0])
+        minute = int(parts[1])
+        if hour < 0 or hour > 23:
+            return None, f'{label} deve estar entre 00:00 e 23:00.'
+        if minute != 0:
+            return None, f'{label} deve usar horas cheias (HH:00).'
+        return hour, None
+
     if send_delay_min_seconds < 1:
         return False, 'Atraso minimo deve ser maior ou igual a 1 segundo.', {}
     if send_delay_max_seconds < send_delay_min_seconds:
@@ -110,6 +126,19 @@ def update_campaign_operational_settings(
         return False, 'Limite diario nao pode ser negativo.', {}
 
     campaign = get_campaign_or_404(db, campaign_id)
+    window_start_hour, start_error = parse_window_hour(send_window_start, 'Inicio da janela')
+    if start_error:
+        return False, start_error, {}
+    window_end_hour, end_error = parse_window_hour(send_window_end, 'Fim da janela')
+    if end_error:
+        return False, end_error, {}
+    if window_start_hour is None:
+        window_start_hour = int(campaign.send_window_start_hour or 8)
+    if window_end_hour is None:
+        window_end_hour = int(campaign.send_window_end_hour or 20)
+    if window_end_hour <= window_start_hour:
+        return False, 'Fim da janela deve ser maior que o inicio da janela.', {}
+
     requested_profile = normalize_speed_profile(speed_profile)
     if requested_profile in SPEED_PROFILE_PRESETS:
         apply_speed_profile(campaign, requested_profile)
@@ -119,6 +148,8 @@ def update_campaign_operational_settings(
         campaign.batch_pause_min_seconds = int(batch_pause_min_seconds)
     if batch_pause_max_seconds is not None:
         campaign.batch_pause_max_seconds = int(batch_pause_max_seconds)
+    campaign.send_window_start_hour = int(window_start_hour)
+    campaign.send_window_end_hour = int(window_end_hour)
     campaign.daily_limit = int(daily_limit)
     campaign.speed_profile = resolve_speed_profile(campaign_profile_settings(campaign))
     db.add(campaign)
@@ -132,7 +163,8 @@ def update_campaign_operational_settings(
         'campaign_speed_profile_changed',
         (
             f'profile={campaign.speed_profile}; delay={campaign.send_delay_min_seconds}-{campaign.send_delay_max_seconds}; '
-            f'batch_pause={campaign.batch_pause_min_seconds}-{campaign.batch_pause_max_seconds}; daily_limit={campaign.daily_limit}'
+            f'batch_pause={campaign.batch_pause_min_seconds}-{campaign.batch_pause_max_seconds}; '
+            f'window={campaign.send_window_start_hour:02d}:00-{campaign.send_window_end_hour:02d}:00; daily_limit={campaign.daily_limit}'
         ),
     )
     db.commit()
@@ -149,6 +181,8 @@ def update_campaign_operational_settings(
         'batch_shrink_step': campaign.batch_shrink_step,
         'batch_shrink_error_streak_required': campaign.batch_shrink_error_streak_required,
         'batch_size_floor': campaign.batch_size_floor,
+        'send_window_start': f'{campaign.send_window_start_hour:02d}:00',
+        'send_window_end': f'{campaign.send_window_end_hour:02d}:00',
         'daily_limit': campaign.daily_limit,
         'runtime_profile': runtime_profile,
     }
@@ -998,6 +1032,83 @@ def _read_campaign_counts(db: Session, campaign_id: int) -> dict:
     }
 
 
+def _build_failed_reprocessing_payload(db: Session, campaign: Campaign) -> Optional[dict]:
+    restart_log = db.scalar(
+        select(SendLog)
+        .where(
+            SendLog.campaign_id == campaign.id,
+            SendLog.event_type == 'campaign_state_change',
+            SendLog.payload_excerpt.is_not(None),
+            SendLog.payload_excerpt.like('campaign restarted;%'),
+        )
+        .order_by(SendLog.created_at.desc())
+        .limit(1)
+    )
+    if restart_log is None:
+        return None
+
+    payload_excerpt = restart_log.payload_excerpt or ''
+    mode_match = re.search(r'mode=([a-z_]+)', payload_excerpt)
+    if mode_match is None or mode_match.group(1) != 'failed':
+        return None
+
+    completed_log = db.scalar(
+        select(SendLog)
+        .where(
+            SendLog.campaign_id == campaign.id,
+            SendLog.event_type == 'campaign_state_change',
+            SendLog.payload_excerpt == 'campaign completed',
+        )
+        .order_by(SendLog.created_at.desc())
+        .limit(1)
+    )
+    if completed_log is None or ensure_aware_utc(restart_log.created_at) <= ensure_aware_utc(completed_log.created_at):
+        return None
+
+    reset_match = re.search(r'reset=(\d+)', payload_excerpt)
+    restart_started_at = ensure_aware_utc(restart_log.created_at)
+    sent_in_reprocessing = int(
+        db.scalar(
+            select(func.count(Contact.id)).where(
+                Contact.campaign_id == campaign.id,
+                Contact.status == 'sent',
+                Contact.sent_at.is_not(None),
+                Contact.sent_at >= restart_started_at,
+            )
+        )
+        or 0
+    )
+    failed_in_reprocessing = int(
+        db.scalar(
+            select(func.count(Contact.id)).where(
+                Contact.campaign_id == campaign.id,
+                Contact.status == 'failed',
+                Contact.last_attempt_at.is_not(None),
+                Contact.last_attempt_at >= restart_started_at,
+            )
+        )
+        or 0
+    )
+    queued_contacts = int(
+        db.scalar(
+            select(func.count(Contact.id)).where(
+                Contact.campaign_id == campaign.id,
+                Contact.status.in_(['pending', 'processing']),
+            )
+        )
+        or 0
+    )
+
+    return {
+        'active': campaign.status != 'completed',
+        'mode': 'failed',
+        'reset_contacts': int(reset_match.group(1)) if reset_match else 0,
+        'queued_contacts': queued_contacts,
+        'sent_in_reprocessing': sent_in_reprocessing,
+        'failed_in_reprocessing': failed_in_reprocessing,
+    }
+
+
 def build_results_payload(db: Session, campaign_id: int) -> dict:
     campaign = get_campaign_or_404(db, campaign_id)
     counts = _read_campaign_counts(db, campaign.id)
@@ -1041,6 +1152,7 @@ def build_results_payload(db: Session, campaign_id: int) -> dict:
         )
         item['count'] += 1
     top_failures = sorted(grouped_failures.values(), key=lambda item: item['count'], reverse=True)[:4]
+    reprocessing_payload = _build_failed_reprocessing_payload(db, campaign)
 
     if campaign.status == 'completed':
         headline = 'Campanha concluida'
@@ -1078,6 +1190,7 @@ def build_results_payload(db: Session, campaign_id: int) -> dict:
         'top_failures': top_failures,
         'started_at': to_iso_utc(campaign.started_at),
         'finished_at': to_iso_utc(campaign.finished_at),
+        'reprocessing': reprocessing_payload,
     }
 
 
@@ -1293,8 +1406,8 @@ def stats_payload(
         'batch_shrink_step': campaign.batch_shrink_step,
         'batch_shrink_error_streak_required': campaign.batch_shrink_error_streak_required,
         'batch_size_floor': campaign.batch_size_floor,
-        'send_window_start': f'{SEND_HOUR_START:02d}:00',
-        'send_window_end': f'{SEND_HOUR_END:02d}:00',
+        'send_window_start': f'{int(campaign.send_window_start_hour or 8):02d}:00',
+        'send_window_end': f'{int(campaign.send_window_end_hour or 20):02d}:00',
         'current_cycle': {
             'sent': current_cycle_sent,
             'failed': current_cycle_failed,

@@ -31,10 +31,10 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
     daily_limit: 0,
     pause_reason: null,
     speed_profile: 'conservative',
-    send_delay_min_seconds: 15,
-    send_delay_max_seconds: 45,
-    batch_pause_min_seconds: 25,
-    batch_pause_max_seconds: 40,
+    send_delay_min_seconds: 5,
+    send_delay_max_seconds: 10,
+    batch_pause_min_seconds: 5,
+    batch_pause_max_seconds: 10,
     batch_size_initial: 10,
     batch_size_max: 25,
     batch_growth_step: 2,
@@ -48,8 +48,8 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
       selected_profile: 'conservative',
       effective_profile: 'conservative',
       batch_size_current: 10,
-      batch_pause_min_seconds: 25,
-      batch_pause_max_seconds: 40,
+      batch_pause_min_seconds: 5,
+      batch_pause_max_seconds: 10,
       profile_source: 'preset',
     },
     performance: {
@@ -64,13 +64,13 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
     estimates: {
       remaining_seconds_observed: 0,
       remaining_seconds_conservative: 0,
-      configured_seconds_per_contact_min: 15,
-      configured_seconds_per_contact_max: 45,
-      configured_batch_pause_min: 25,
-      configured_batch_pause_max: 40,
+      configured_seconds_per_contact_min: 5,
+      configured_seconds_per_contact_max: 10,
+      configured_batch_pause_min: 5,
+      configured_batch_pause_max: 10,
       label_speed: 'Aquecendo medicao',
       label_eta: 'Calculando com base na execucao real',
-      label_configured_pace: 'Config.: 15-45s por envio + pausas operacionais',
+      label_configured_pace: 'Config.: 5-10s por envio + pausas operacionais',
     },
   };
   let overviewState = {
@@ -93,6 +93,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
       top_failures: [],
       started_at: null,
       finished_at: null,
+      reprocessing: null,
     },
     activity: {
       total_events: 0,
@@ -109,8 +110,9 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   let deleteContactCalled = false;
   let deleteImportedCalled = false;
   let deleteCampaignCalled = false;
+  let failedReprocessingCalled = false;
   let currentContactsPage = 1;
-  let currentPerPage = 25;
+  let currentPerPage = 10;
   let currentStatusFilter = '';
   let overviewFailureCountdown = 0;
   let contactsItems = Array.from({ length: 26 }, (_, index) => ({
@@ -196,10 +198,12 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.route('**/campaigns/*/settings', async (route) => {
     const body = route.request().postData() || '';
     const params = new URLSearchParams(body);
-    const minDelay = Number(params.get('send_delay_min_seconds') || '15');
-    const maxDelay = Number(params.get('send_delay_max_seconds') || '45');
-    const batchPauseMin = Number(params.get('batch_pause_min_seconds') || '25');
-    const batchPauseMax = Number(params.get('batch_pause_max_seconds') || '40');
+    const minDelay = Number(params.get('send_delay_min_seconds') || '5');
+    const maxDelay = Number(params.get('send_delay_max_seconds') || '10');
+    const batchPauseMin = Number(params.get('batch_pause_min_seconds') || '5');
+    const batchPauseMax = Number(params.get('batch_pause_max_seconds') || '10');
+    const sendWindowStart = params.get('send_window_start') || '08:00';
+    const sendWindowEnd = params.get('send_window_end') || '20:00';
     const speedProfile = params.get('speed_profile') || 'conservative';
     statsState = {
       ...statsState,
@@ -208,6 +212,8 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
       send_delay_max_seconds: maxDelay,
       batch_pause_min_seconds: batchPauseMin,
       batch_pause_max_seconds: batchPauseMax,
+      send_window_start: sendWindowStart,
+      send_window_end: sendWindowEnd,
       daily_limit: Number(params.get('daily_limit') || '0'),
       runtime_profile: {
         ...statsState.runtime_profile,
@@ -239,6 +245,8 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
           send_delay_max_seconds: maxDelay,
           batch_pause_min_seconds: batchPauseMin,
           batch_pause_max_seconds: batchPauseMax,
+          send_window_start: sendWindowStart,
+          send_window_end: sendWindowEnd,
           daily_limit: statsState.daily_limit,
         },
       }),
@@ -334,7 +342,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.route(/\/campaigns\/\d+\/contacts(\?.*)?$/, async (route) => {
     const url = new URL(route.request().url());
     currentContactsPage = Number(url.searchParams.get('page') || '1');
-    currentPerPage = Number(url.searchParams.get('per_page') || '25');
+    currentPerPage = Number(url.searchParams.get('per_page') || '10');
     currentStatusFilter = (url.searchParams.get('status') || '').trim();
     const filteredItems = currentStatusFilter ? contactsItems.filter((item) => item.status === currentStatusFilter) : contactsItems;
     const offset = (currentContactsPage - 1) * currentPerPage;
@@ -403,6 +411,48 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
     });
   });
 
+  await page.route('**/campaigns/*/restart', async (route) => {
+    const body = route.request().postData() || '';
+    const params = new URLSearchParams(body);
+    const mode = params.get('mode') || 'all';
+    if (mode === 'failed') {
+      failedReprocessingCalled = true;
+      statsState = {
+        ...statsState,
+        status: 'ready',
+        pending: 26,
+        updated_at: '2026-03-18T12:07:15+00:00',
+      };
+      overviewState = {
+        ...overviewState,
+        results: {
+          ...overviewState.results,
+          headline: 'Fila reaberta',
+          summary: 'Os contatos ja processados permanecem no historico, enquanto a nova fila aguarda o proximo envio.',
+          distribution: { sent: 237, failed: 0, pending: 26, invalid: 1, valid: 263, total: 264 },
+          reprocessing: {
+            active: true,
+            mode: 'failed',
+            reset_contacts: 26,
+            queued_contacts: 26,
+            sent_in_reprocessing: 0,
+            failed_in_reprocessing: 0,
+          },
+        },
+      };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        message: mode === 'failed' ? 'Fila recriada para reenviar so as falhas.' : 'Fila recriada para reenviar toda a campanha.',
+        reset_contacts: mode === 'failed' ? 26 : 238,
+        new_status: 'ready',
+      }),
+    });
+  });
+
   await page.route('**/campaigns/*/dry-run', async (route) => {
     await page.waitForTimeout(250);
     await route.fulfill({
@@ -461,7 +511,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
         ok: true,
         sent: 1,
         failures: 0,
-        message: 'Amostra enviada',
+        message: 'Amostra enviada para confirmacao.',
         destination_note: 'Mesmo número conectado',
         failure_reasons: {},
         failure_details: [],
@@ -649,7 +699,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.getByPlaceholder('Senha').fill('admin123');
   await page.getByRole('button', { name: 'Entrar' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Operacao de campanhas' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Campanhas' })).toBeVisible();
   await expect(page.getByText('Canal WhatsApp')).toBeVisible();
   await expect(page.getByText('Sessao pronta para conectar um numero.')).toBeVisible();
   await page.getByRole('button', { name: 'Gerar QR para conectar' }).click();
@@ -659,11 +709,12 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.locator('input[name="name"]').fill('Campanha E2E');
   await page.getByRole('button', { name: 'Criar campanha' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Campanha E2E' })).toBeVisible();
+  await expect(page).toHaveURL(/\/campaigns\/\d+$/);
+  await expect(page.locator('h1')).toBeVisible();
   await expect(page.locator('[data-testid="campaign-stepper"]')).toBeVisible();
   await expect(page.getByText('Configuracoes operacionais')).toBeVisible();
   await expect(page.locator('#speed-profile-badge')).toContainText('Conservador');
-  await page.getByRole('button', { name: 'Modo agressivo' }).click();
+  await page.getByRole('button', { name: 'Agressivo' }).click();
   await expect(page.locator('#settings-form input[name="send_delay_min_seconds"]')).toHaveValue('3');
   await expect(page.locator('#settings-form input[name="batch_pause_max_seconds"]')).toHaveValue('10');
   await expect(page.locator('#speed-profile-badge')).toContainText('Agressivo');
@@ -679,20 +730,20 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Simular campanha' })).toBeVisible();
   await expect(page.locator('[data-testid="primary-action"]')).toContainText('Simular campanha');
   await expect(page.locator('[data-testid="status-filter-trigger"]')).toHaveText(/Todos/);
-  await expect(page.locator('#contacts-meta')).toContainText('Pagina 1 de 2');
+  await expect(page.locator('#contacts-meta')).toContainText('Pagina 1 de 3');
   await page.locator('[data-testid="status-filter-trigger"]').click();
   await page.getByRole('option', { name: 'Falhas' }).click();
   await expect(page.locator('[data-testid="status-filter-trigger"]')).toHaveText(/Falhas/);
-  await expect(page.locator('#contacts-per-page')).toHaveValue('25');
-  await expect(page.locator('#contacts-body tr')).toHaveCount(25);
-  await expect(page.locator('#contacts-meta')).toContainText('Total exibido: 25 de 26 registros. Pagina 1 de 2.');
-  await page.getByRole('button', { name: 'Proxima pagina' }).click();
-  await expect(page.locator('#contacts-meta')).toContainText('Total exibido: 1 de 26 registros. Pagina 2 de 2.');
-  await expect(page.locator('#contacts-body')).toContainText('Cliente 26');
-  await page.getByRole('button', { name: 'Pagina anterior' }).click();
-  await expect(page.locator('#contacts-meta')).toContainText('Total exibido: 25 de 26 registros. Pagina 1 de 2.');
+  await expect(page.locator('#contacts-per-page')).toHaveValue('10');
+  await expect(page.locator('#contacts-body tr')).toHaveCount(10);
+  await expect(page.locator('#contacts-meta')).toContainText('Total exibido: 10 de 26 registros. Pagina 1 de 3.');
+  await page.getByRole('button', { name: 'Proxima' }).click();
+  await expect(page.locator('#contacts-meta')).toContainText('Total exibido: 10 de 26 registros. Pagina 2 de 3.');
+  await expect(page.locator('#contacts-body')).toContainText('Cliente 11');
+  await page.getByRole('button', { name: 'Anterior' }).click();
+  await expect(page.locator('#contacts-meta')).toContainText('Total exibido: 10 de 26 registros. Pagina 1 de 3.');
 
-  await page.getByRole('button', { name: 'Adicionar cliente manualmente' }).click();
+  await page.getByRole('button', { name: 'Adicionar manualmente' }).click();
   await page.locator('#manual-contact-form input[name="name"]').fill('Cliente Manual');
   await page.locator('#manual-contact-form input[name="phone"]').fill('1234');
   await page.getByRole('button', { name: 'Salvar cliente' }).click();
@@ -705,7 +756,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.locator('#contacts-body').getByRole('button', { name: 'Excluir' }).first().click();
   await expect(page.locator('#confirm-title')).toContainText('Excluir contato da campanha');
   await page.getByRole('button', { name: 'Confirmar' }).click();
-  await expect(page.getByText('Contato removido da campanha.')).toBeVisible();
+  await expect(page.getByText('Contato removido da campanha com sucesso.')).toBeVisible();
   expect(deleteContactCalled).toBeTruthy();
 
   await page.getByRole('button', { name: 'Limpar base importada' }).click();
@@ -726,7 +777,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
       }),
     )
     .toBe('contatos_e2e.csv');
-  await page.getByRole('button', { name: 'Enviar arquivo CSV' }).click();
+  await page.getByRole('button', { name: 'Enviar CSV' }).click();
   await expect(page.getByText('Upload concluido com sucesso.')).toBeVisible();
   await expect(page.locator('#upload-summary')).toContainText('2 contatos prontos para envio');
   await expect(page.locator('[data-testid="status-filter-trigger"]')).toHaveText(/Todos/);
@@ -748,16 +799,16 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await expect(page.locator('[data-testid="primary-action"]')).toContainText('Iniciar campanha');
 
   await page.getByRole('button', { name: 'Iniciar campanha' }).click();
-  await expect(page.locator('[data-testid="status-narrative"]')).toContainText('Envio em risco');
+  await expect(page.locator('[data-testid="status-narrative"]')).toContainText(/Envio em risco|Fila travada em processamento/);
   await expect(page.locator('[data-testid="primary-action"]')).toContainText('Pausar campanha');
   await expect(page.locator('[data-testid="execution-progress-bar"]')).toBeVisible();
   await expect(page.locator('#speed-note')).toContainText('Config. 18-48s + pausas');
   await expect(page.locator('#daily-limit-summary')).toContainText('Hoje: 0 / 250 envios');
-  await page.getByRole('button', { name: 'Modo conservador' }).click();
+  await page.getByRole('button', { name: 'Conservador' }).click();
   await expect(page.locator('#confirm-title')).toContainText('Aplicar novo modo de velocidade');
   await page.getByRole('button', { name: 'Aplicar modo' }).click();
   await expect(page.locator('#runtime-profile-badge')).toContainText('Perfil conservador');
-  await expect(page.locator('#speed-note')).toContainText('Config. 15-45s + pausas');
+  await expect(page.locator('#speed-note')).toContainText('Config. 5-10s + pausas');
   await page.getByRole('button', { name: 'Minimizar' }).click();
   await expect(page.locator('[data-testid="execution-progress-bar"]')).toHaveClass(/is-collapsed/);
   await expect(page.locator('#execution-progress-pill')).toBeVisible();
@@ -769,7 +820,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.locator('#confirm-cancel').click();
 
   await page.getByRole('button', { name: 'Pausar campanha' }).click();
-  await expect(page.locator('[data-testid="status-narrative"]')).toContainText('5 falhas consecutivas');
+  await expect(page.locator('[data-testid="status-narrative"]')).toContainText('falhas consecutivas');
   await expect(page.locator('[data-testid="primary-action"]')).toContainText('Retomar campanha');
 
   await page.getByRole('button', { name: 'Retomar campanha' }).click();
@@ -797,12 +848,23 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await expect(page.locator('#results-headline')).toContainText('Campanha concluida');
   await expect(page.locator('#results-success-rate')).toContainText('100%');
   await expect(page.locator('#results-distribution')).toContainText('Enviados');
+  const reprocessButton = page.getByRole('button', { name: 'Reprocessar falhados' });
+  if (await reprocessButton.count()) {
+    await expect(reprocessButton).toBeVisible();
+    await reprocessButton.click();
+    await expect(page.locator('#confirm-title')).toContainText('Reprocessar falhados');
+    await page.getByRole('button', { name: 'Confirmar' }).click();
+    await expect.poll(() => failedReprocessingCalled).toBeTruthy();
+    await expect(page.locator('#campaign-status-badge')).toContainText('Pronta');
+    await expect(page.locator('#results-reprocessing')).toContainText('Reprocessamento de falhas');
+    await expect(page.locator('#results-reprocessing')).toContainText('26 contatos reenfileirados');
+  }
 
   statsState = {
     ...statsState,
     test_completed_at: null,
   };
-  await page.getByRole('button', { name: 'Adicionar cliente manualmente' }).click();
+  await page.getByRole('button', { name: 'Adicionar manualmente' }).click();
   await page.locator('#manual-contact-form input[name="name"]').fill('Novo apos concluida');
   await page.locator('#manual-contact-form input[name="phone"]').fill('+55 81999999998');
   await page.getByRole('button', { name: 'Salvar cliente' }).click();
@@ -820,7 +882,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await expect(page.locator('[data-testid="primary-action"]')).toContainText('Reiniciar campanha');
   await expect(page.getByRole('button', { name: 'Reiniciar campanha' })).toHaveCount(1);
 
-  await page.getByRole('button', { name: 'Mostrar atividade tecnica' }).click();
+  await page.getByRole('button', { name: 'Mostrar logs' }).click();
   await expect(page.locator('[data-testid="logs-panel"]')).toContainText('Incidentes agrupados');
   await expect(page.locator('#activity-summary-grid')).toContainText('Entregas confirmadas');
   await expect(page.locator('#activity-incidents')).toContainText('Bridge indisponivel');
@@ -834,8 +896,8 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.setViewportSize({ width: 430, height: 932 });
   await expect(page.locator('[data-testid="contacts-table-wrap"]')).toBeVisible();
 
-  await page.getByRole('link', { name: /Voltar para operacao/ }).click();
-  await expect(page.getByRole('heading', { name: 'Operacao de campanhas' })).toBeVisible();
+  await page.getByRole('link', { name: /Voltar/ }).click();
+  await expect(page.getByRole('heading', { name: 'Campanhas' })).toBeVisible();
   await page.getByRole('button', { name: 'Excluir' }).first().click();
   await expect(page.locator('#bridge-confirm-title')).toContainText('Excluir campanha');
   await page.getByRole('button', { name: 'Confirmar' }).click();

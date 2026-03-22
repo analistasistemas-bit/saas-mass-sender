@@ -435,6 +435,7 @@ server.on('error', async (error) => {
 process.on('SIGINT', () => scheduleShutdown('SIGINT'));
 process.on('SIGTERM', () => scheduleShutdown('SIGTERM'));
 
-server.listen(port, () => {
-  console.log(`wa-bridge listening on ${port}`);
+const host = process.env.WA_BRIDGE_HOST || '127.0.0.1';
+server.listen(port, host, () => {
+  console.log(`wa-bridge listening on ${host}:${port}`);
 });

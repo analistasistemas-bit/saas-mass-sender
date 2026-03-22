@@ -63,6 +63,21 @@ class SendEngine:
             },
         }
 
+    def reset_campaign_runtime(self, campaign_id: int, hard: bool = False) -> None:
+        if hard:
+            self._profiles.pop(campaign_id, None)
+            return
+
+        profile = self._profiles.get(campaign_id)
+        if profile is None:
+            return
+        profile['ok_streak'] = 0
+        profile['err_streak'] = 0
+        profile['consecutive_failures'] = 0
+        profile['waiting_for_window'] = False
+        profile['last_recovery_attempt_at'] = None
+        profile['recovery_attempts'] = 0
+
     async def run_forever(self) -> None:
         while not self._stop:
             self._mark_worker_heartbeat('Motor de envio operacional.')
@@ -130,18 +145,20 @@ class SendEngine:
                 else:
                     db.commit()
 
-                if not within_send_window(current_local):
+                window_start = int(campaign.send_window_start_hour or 8)
+                window_end = int(campaign.send_window_end_hour or 20)
+                if not within_send_window(current_local, window_start, window_end):
                     if not profile['waiting_for_window']:
                         log_event(
                             db,
                             campaign_id,
                             None,
                             'send_window_wait',
-                            'Envio aguardando a janela operacional de 08h a 20h.',
+                            f'Envio aguardando a janela operacional de {window_start:02d}h a {window_end:02d}h.',
                         )
                         profile['waiting_for_window'] = True
                     db.commit()
-                    await asyncio.sleep(min(60, seconds_until_next_window(current_local)))
+                    await asyncio.sleep(min(60, seconds_until_next_window(current_local, window_start, window_end)))
                     return
                 profile['waiting_for_window'] = False
 
@@ -190,9 +207,11 @@ class SendEngine:
             sent_in_batch = 0
             failed_in_batch = 0
             recovery_interrupted_batch = False
+            attempted_contact_ids: list[int] = []
             for contact_id in contact_ids:
                 if profile['consecutive_failures'] >= 5:
                     break
+                attempted_contact_ids.append(contact_id)
                 result = await self._send_single(campaign_id, contact_id)
                 if result == 'sent':
                     sent_in_batch += 1
@@ -243,6 +262,10 @@ class SendEngine:
                     db.commit()
                     await asyncio.sleep(random.uniform(campaign.send_delay_min_seconds, campaign.send_delay_max_seconds))
 
+            remaining_contact_ids = [contact_id for contact_id in contact_ids if contact_id not in attempted_contact_ids]
+            if remaining_contact_ids:
+                self._requeue_unattempted_contacts(campaign_id, remaining_contact_ids)
+
             if failed_in_batch == 0:
                 profile['ok_streak'] += 1
                 profile['err_streak'] = 0
@@ -279,6 +302,20 @@ class SendEngine:
                 await asyncio.sleep(random.uniform(pause_min, pause_max))
         finally:
             self._locks.discard(campaign_id)
+
+    def _requeue_unattempted_contacts(self, campaign_id: int, contact_ids: list[int]) -> None:
+        if not contact_ids:
+            return
+        with SessionLocal() as db:
+            contacts = db.scalars(
+                select(Contact).where(Contact.campaign_id == campaign_id, Contact.id.in_(contact_ids), Contact.status == 'processing')
+            ).all()
+            for contact in contacts:
+                contact.status = 'pending'
+                db.add(contact)
+            if contacts:
+                refresh_campaign_counters(db, campaign_id)
+                db.commit()
 
     def _sync_runtime_profile(self, profile: dict, campaign: Campaign) -> None:
         profile['batch_size_max'] = int(campaign.batch_size_max)

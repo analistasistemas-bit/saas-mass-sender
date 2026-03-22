@@ -1,0 +1,65 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+
+# Garante que apenas um deploy rode por vez.
+# Se dois pushs chegarem juntos, o segundo espera o primeiro terminar.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy para VPS Hostinger
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar chave SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+
+      - name: Adicionar VPS ao known_hosts
+        run: ssh-keyscan -p ${{ secrets.VPS_SSH_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy na VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" 'bash -s' << 'ENDSSH'
+            set -euo pipefail
+            APP_DIR="/opt/mass-sender"
+
+            echo "=== [1/4] Baixando codigo mais recente ==="
+            cd "$APP_DIR"
+            git fetch --all
+            git reset --hard origin/main
+
+            echo "=== [2/4] Reconstruindo e subindo containers ==="
+            # Reconstroi apenas o container do app Python (mais rapido)
+            # O wa-bridge so reconstroi se o Dockerfile ou package.json mudar (cache Docker)
+            docker compose build app
+            docker compose up -d --remove-orphans
+
+            echo "=== [3/4] Verificando se o app subiu corretamente ==="
+            sleep 10
+            HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health)
+            if [ "$HTTP" != "200" ]; then
+              echo "ERRO: health check retornou HTTP $HTTP — o deploy falhou"
+              echo "--- Logs do container app ---"
+              docker compose logs app --tail=50
+              exit 1
+            fi
+            echo "Deploy concluido com sucesso. Health check: HTTP $HTTP"
+
+            echo "=== [4/4] Limpando imagens Docker antigas ==="
+            docker image prune -f
+          ENDSSH

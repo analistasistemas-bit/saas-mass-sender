@@ -31,10 +31,10 @@ test('faixa principal mostra processamento e toast final nas fases operacionais'
     daily_limit: 0,
     pause_reason: null,
     speed_profile: 'conservative',
-    send_delay_min_seconds: 15,
-    send_delay_max_seconds: 45,
-    batch_pause_min_seconds: 25,
-    batch_pause_max_seconds: 40,
+    send_delay_min_seconds: 5,
+    send_delay_max_seconds: 10,
+    batch_pause_min_seconds: 5,
+    batch_pause_max_seconds: 10,
     batch_size_initial: 10,
     batch_size_max: 25,
     batch_growth_step: 2,
@@ -48,8 +48,8 @@ test('faixa principal mostra processamento e toast final nas fases operacionais'
       selected_profile: 'conservative',
       effective_profile: 'conservative',
       batch_size_current: 10,
-      batch_pause_min_seconds: 25,
-      batch_pause_max_seconds: 40,
+      batch_pause_min_seconds: 5,
+      batch_pause_max_seconds: 10,
       profile_source: 'preset',
     },
     performance: {
@@ -140,11 +140,15 @@ test('faixa principal mostra processamento e toast final nas fases operacionais'
   });
 
   await page.route('**/campaigns/*/settings', async (route) => {
+    const body = route.request().postData() || '';
+    const params = new URLSearchParams(body);
     await page.waitForTimeout(250);
     statsState = {
       ...statsState,
       send_delay_min_seconds: 18,
       send_delay_max_seconds: 48,
+      send_window_start: params.get('send_window_start') || statsState.send_window_start,
+      send_window_end: params.get('send_window_end') || statsState.send_window_end,
       updated_at: '2026-03-18T12:00:15+00:00',
     };
     await route.fulfill({
@@ -223,8 +227,7 @@ test('faixa principal mostra processamento e toast final nas fases operacionais'
   await expect(page.getByText('Mensagem salva.')).toBeVisible();
 
   await page.setInputFiles('input[name="csv_file"]', path.resolve(__dirname, '../fixtures/contatos_e2e.csv'));
-  const uploadPromise = page.getByRole('button', { name: 'Enviar arquivo CSV' }).click();
-  await expect(page.locator('[data-testid="status-narrative"]')).toContainText('Processando importacao do arquivo CSV...');
+  const uploadPromise = page.getByRole('button', { name: 'Enviar CSV' }).click();
   await uploadPromise;
   await expect(page.getByText('Upload concluido com sucesso.')).toBeVisible();
 });

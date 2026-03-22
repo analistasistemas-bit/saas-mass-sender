@@ -1,0 +1,34 @@
+# Segredos — nunca entram na imagem Docker
+.env
+.env.*
+
+# Ambiente Python local
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Testes nao vao para producao
+tests/
+
+# Git e controle de versao
+.git/
+.gitignore
+
+# Banco de dados local (na VPS fica no volume Docker)
+app.db
+app.db-shm
+app.db-wal
+
+# Dependencias Node do wa-bridge (instaladas dentro do container)
+wa-bridge/node_modules/
+wa-bridge/.wwebjs_auth/
+
+# CI/CD e documentacao
+.github/
+docs/
+
+# IDEs
+.vscode/
+.idea/

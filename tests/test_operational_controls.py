@@ -59,6 +59,18 @@ def test_update_campaign_operational_settings_rejects_invalid_ranges():
     assert ok is False
     assert 'limite' in message.lower()
 
+    ok, message, _settings = update_campaign_operational_settings(
+        session,
+        campaign.id,
+        15,
+        45,
+        0,
+        send_window_start='21:00',
+        send_window_end='08:00',
+    )
+    assert ok is False
+    assert 'janela' in message.lower()
+
 
 def test_update_campaign_operational_settings_persists_values_and_stats_payload_exposes_them():
     session = build_session()
@@ -81,6 +93,32 @@ def test_update_campaign_operational_settings_persists_values_and_stats_payload_
     assert payload['performance']['warming_up'] is True
     assert payload['estimates']['configured_batch_pause_min'] == 5
     assert payload['estimates']['configured_batch_pause_max'] == 10
+
+
+def test_update_campaign_operational_settings_persists_send_window():
+    session = build_session()
+    campaign = Campaign(name='Janela', message_template='Oi {{nome}}', status='ready')
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
+
+    ok, message, settings = update_campaign_operational_settings(
+        session,
+        campaign.id,
+        10,
+        20,
+        0,
+        send_window_start='09:00',
+        send_window_end='18:00',
+    )
+    assert ok is True
+    assert 'salvas' in message.lower()
+    assert settings['send_window_start'] == '09:00'
+    assert settings['send_window_end'] == '18:00'
+
+    payload = stats_payload(session, campaign.id)
+    assert payload['send_window_start'] == '09:00'
+    assert payload['send_window_end'] == '18:00'
 
 
 def test_campaign_defaults_to_conservative_speed_profile():
@@ -283,6 +321,8 @@ def test_campaign_settings_route_saves_values():
                 'send_delay_max_seconds': 48,
                 'batch_pause_min_seconds': 8,
                 'batch_pause_max_seconds': 15,
+                'send_window_start': '09:00',
+                'send_window_end': '19:00',
                 'daily_limit': 250,
             },
         )
@@ -294,6 +334,8 @@ def test_campaign_settings_route_saves_values():
         assert payload['settings']['send_delay_max_seconds'] == 48
         assert payload['settings']['batch_pause_min_seconds'] == 8
         assert payload['settings']['batch_pause_max_seconds'] == 15
+        assert payload['settings']['send_window_start'] == '09:00'
+        assert payload['settings']['send_window_end'] == '19:00'
         assert payload['settings']['daily_limit'] == 250
     finally:
         main.app.dependency_overrides.clear()

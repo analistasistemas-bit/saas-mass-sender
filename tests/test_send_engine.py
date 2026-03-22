@@ -181,6 +181,78 @@ def test_process_campaign_pauses_after_five_consecutive_failures(monkeypatch):
     assert len(logs) == 1
 
 
+def test_process_campaign_requeues_unattempted_contacts_after_auto_pause(monkeypatch):
+    engine = create_engine('sqlite:///:memory:', future=True)
+    Session = sessionmaker(bind=engine, future=True)
+    Base.metadata.create_all(engine)
+
+    session = Session()
+    campaign = Campaign(name='Falhas em lote', message_template='Oi, {{nome}}', status='running', is_test_required=0)
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
+    campaign_id = campaign.id
+
+    for index in range(10):
+        session.add(
+            Contact(
+                campaign_id=campaign_id,
+                name=f'Contato {index}',
+                phone_raw=f'1199999888{index}',
+                phone_e164=f'+551199999888{index}',
+                email=f'contato{index}@teste.com',
+                status='pending',
+            )
+        )
+    session.commit()
+    session.close()
+
+    class FakeClient:
+        async def send_text(self, phone_e164: str, text: str) -> None:
+            raise send_engine.WhatsAppError('falha temporaria', 503, 'temporary')
+
+    monkeypatch.setattr(send_engine, 'SessionLocal', Session)
+    monkeypatch.setattr(send_engine, 'now_local', lambda: datetime(2026, 3, 19, 10, 0, tzinfo=timezone.utc))
+
+    async def fake_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(send_engine.asyncio, 'sleep', fake_sleep)
+    monkeypatch.setattr(send_engine.random, 'uniform', lambda _a, _b: 0)
+
+    engine_worker = send_engine.SendEngine()
+    engine_worker.client = FakeClient()
+    engine_worker._profiles[campaign_id] = {'batch_size': 10, 'ok_streak': 0, 'err_streak': 0, 'consecutive_failures': 0, 'waiting_for_window': False}
+
+    asyncio.run(engine_worker._process_campaign(campaign_id))
+
+    check = Session()
+    processing_count = check.query(Contact).filter(Contact.campaign_id == campaign_id, Contact.status == 'processing').count()
+    pending_count = check.query(Contact).filter(Contact.campaign_id == campaign_id, Contact.status == 'pending').count()
+
+    assert processing_count == 0
+    assert pending_count == 10
+
+
+def test_reset_campaign_runtime_clears_consecutive_failures():
+    engine_worker = send_engine.SendEngine()
+    engine_worker._profiles[99] = {
+        'batch_size': 12,
+        'ok_streak': 1,
+        'err_streak': 2,
+        'consecutive_failures': 5,
+        'waiting_for_window': True,
+    }
+
+    engine_worker.reset_campaign_runtime(99)
+
+    assert engine_worker._profiles[99]['batch_size'] == 12
+    assert engine_worker._profiles[99]['ok_streak'] == 0
+    assert engine_worker._profiles[99]['err_streak'] == 0
+    assert engine_worker._profiles[99]['consecutive_failures'] == 0
+    assert engine_worker._profiles[99]['waiting_for_window'] is False
+
+
 def test_process_campaign_increments_sent_today_and_pauses_at_daily_limit(monkeypatch):
     engine = create_engine('sqlite:///:memory:', future=True)
     Session = sessionmaker(bind=engine, future=True)

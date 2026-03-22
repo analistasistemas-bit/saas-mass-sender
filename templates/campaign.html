@@ -3,34 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ campaign.name }} - Operacao guiada</title>
+    <title>{{ campaign.name }} - Mass Sender</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              ink: '#102033',
-              muted: '#62748a',
-              shell: '#eef4f7',
-              line: '#d7e1e8',
-              brand: '#0f6cbd',
-              success: '#1f8f5f',
-              warn: '#b7791f',
-              danger: '#c05656',
+              ink: '#111827',
+              muted: '#6b7280',
+              shell: '#f9fafb',
+              line: '#e5e7eb',
+              brand: '#3b82f6',
+              success: '#22c55e',
+              warn: '#f59e0b',
+              danger: '#ef4444',
             },
             fontFamily: {
-              sans: ['IBM Plex Sans', 'sans-serif'],
-              display: ['Sora', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
-              panel: '0 18px 42px rgba(15, 23, 42, 0.08)',
+              panel: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
             },
           },
         },
@@ -39,9 +35,8 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="min-h-screen bg-shell text-ink">
-    <div class="absolute inset-x-0 top-0 -z-10 h-[440px] bg-[radial-gradient(circle_at_top_left,_rgba(15,108,189,0.16),_transparent_45%),radial-gradient(circle_at_top_right,_rgba(31,143,95,0.14),_transparent_38%),linear-gradient(180deg,_#f8fbfd_0%,_#eef4f7_100%)]"></div>
     <main
-      class="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8"
+      class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8"
       data-campaign-id="{{ campaign.id }}"
       data-status="{{ campaign.status }}"
       data-pending="{{ stats.pending }}"
@@ -55,51 +50,50 @@
       data-contacts-filter="{{ contacts_status_filter }}"
     >
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <a href="/" class="inline-flex items-center gap-2 text-sm font-semibold text-brand">← Voltar para operacao</a>
+        <a href="/" class="inline-flex items-center gap-1.5 text-sm font-medium text-brand">← Voltar</a>
         <button type="button" id="delete-campaign-button" class="danger-button hidden">Excluir campanha</button>
       </div>
 
-      <section class="rounded-[32px] border border-white/70 bg-white/95 p-6 shadow-panel backdrop-blur">
-        <div class="flex flex-col gap-6">
-          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div class="space-y-3">
-              <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Console da campanha</p>
-              <div class="flex flex-wrap items-center gap-3">
-                <h1 class="font-display text-4xl tracking-tight text-ink">{{ campaign.name }}</h1>
+      <section class="rounded-xl border border-line bg-white p-5">
+        <div class="flex flex-col gap-5">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <h1 class="text-2xl font-bold tracking-tight text-ink">{{ campaign.name }}</h1>
                 <span id="campaign-status-badge" class="status-badge" data-state="{{ campaign.status }}">{{ campaign.status }}</span>
                 <span id="bridge-state-badge" class="status-badge status-badge--muted">Verificando WhatsApp</span>
               </div>
-              <p id="status-narrative" data-testid="status-narrative" class="max-w-3xl text-base leading-7 text-slate-600">
+              <p id="status-narrative" data-testid="status-narrative" class="max-w-2xl text-sm text-muted">
                 Carregando estado operacional da campanha.
               </p>
             </div>
-            <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">
+            <div class="rounded-lg border border-line bg-gray-50 px-3 py-2.5">
+              <div class="flex items-center gap-1.5 text-xs font-medium text-muted">
                 <span class="pulse-dot"></span>
                 <span id="polling-label">Atualizando dados...</span>
               </div>
-              <p id="last-updated" class="mt-2 text-sm text-slate-500">Atualizacao inicial em andamento.</p>
+              <p id="last-updated" class="mt-1 text-xs text-muted">Atualizacao inicial em andamento.</p>
             </div>
           </div>
 
-          <div class="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-              <div class="flex flex-wrap gap-3" id="service-status-grid">
+          <div id="service-health-layout" class="service-health-layout service-health-layout--centered">
+            <div class="rounded-lg border border-line bg-gray-50 p-3">
+              <div class="flex flex-wrap justify-center gap-3" id="service-status-grid">
                 <article class="service-status-card">
                   <p class="metric-label">Motor de envio</p>
                   <span id="worker-service-badge" class="status-badge status-badge--muted">Verificando</span>
-                  <p id="worker-service-copy" class="mt-2 text-sm leading-6 text-slate-500">Aguardando leitura do motor de envio.</p>
+                  <p id="worker-service-copy" class="mt-1.5 text-sm text-muted">Aguardando leitura do motor de envio.</p>
                 </article>
                 <article class="service-status-card">
                   <p class="metric-label">WhatsApp / bridge</p>
                   <span id="bridge-service-badge" class="status-badge status-badge--muted">Verificando</span>
-                  <p id="bridge-service-copy" class="mt-2 text-sm leading-6 text-slate-500">Aguardando leitura do servico de WhatsApp.</p>
+                  <p id="bridge-service-copy" class="mt-1.5 text-sm text-muted">Aguardando leitura do servico de WhatsApp.</p>
                 </article>
               </div>
             </div>
-            <div id="service-alert-panel" class="hidden rounded-[24px] border border-slate-200 bg-slate-50 p-4">
-              <p id="service-alert-title" class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Monitor operacional</p>
-              <p id="service-alert-message" class="mt-3 text-sm leading-6 text-slate-600">Nenhum alerta operacional ativo.</p>
+            <div id="service-alert-panel" class="hidden rounded-lg border border-line bg-gray-50 p-3">
+              <p id="service-alert-title" class="text-xs font-medium text-brand">Monitor operacional</p>
+              <p id="service-alert-message" class="mt-2 text-sm text-muted">Nenhum alerta operacional ativo.</p>
             </div>
           </div>
 
@@ -115,38 +109,38 @@
       </section>
 
       <section class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <article class="min-w-0 rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-panel">
-          <div class="flex flex-col gap-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
+        <article class="min-w-0 rounded-xl border border-line bg-white p-5">
+          <div class="flex flex-col gap-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Acao principal</p>
-                <h2 id="primary-title" class="mt-2 font-display text-3xl text-ink">Preparando campanha</h2>
-                <p id="primary-description" class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                <p class="text-xs font-medium text-muted">Proxima acao</p>
+                <h2 id="primary-title" class="mt-1 text-lg font-semibold text-ink">Preparando campanha</h2>
+                <p id="primary-description" class="mt-2 max-w-xl text-sm text-muted">
                   O sistema vai destacar apenas a proxima decisao importante.
                 </p>
               </div>
-              <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                <p class="font-semibold text-ink">Regra ativa</p>
-                <p id="primary-rule" class="mt-1">Uma unica acao dominante por estado.</p>
+              <div class="rounded-lg border border-line bg-gray-50 px-3 py-2.5 text-sm text-muted">
+                <p class="font-medium text-ink">Regra ativa</p>
+                <p id="primary-rule" class="mt-0.5 text-xs">Uma unica acao dominante por estado.</p>
               </div>
             </div>
 
-            <div data-testid="primary-action" class="rounded-[24px] border border-brand/15 bg-[linear-gradient(135deg,_rgba(15,108,189,0.12),_rgba(255,255,255,1))] p-5">
-              <div class="flex flex-col gap-4">
-                <button id="primary-action-button" type="button" class="primary-button w-full justify-center text-base">
+            <div data-testid="primary-action" class="rounded-lg border border-brand/15 bg-brand/5 p-4">
+              <div class="flex flex-col gap-3">
+                <button id="primary-action-button" type="button" class="primary-button w-full justify-center">
                   Carregando...
                 </button>
-                <div id="secondary-actions" class="flex flex-wrap gap-3"></div>
-                <div id="destructive-actions" class="flex flex-wrap gap-3 border-t border-slate-200 pt-4"></div>
+                <div id="secondary-actions" class="flex flex-wrap gap-2"></div>
+                <div id="destructive-actions" class="flex flex-wrap gap-2 border-t border-line pt-3"></div>
               </div>
             </div>
 
-            <div id="action-insight" class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-              <div class="flex items-start gap-3">
-                <div class="mt-1 h-3 w-3 rounded-full bg-brand"></div>
+            <div id="action-insight" class="rounded-lg border border-line bg-gray-50 p-4">
+              <div class="flex items-start gap-2.5">
+                <div class="mt-0.5 h-2 w-2 rounded-full bg-brand"></div>
                 <div>
-                  <p class="text-sm font-semibold text-ink">Orientacao do sistema</p>
-                  <p id="action-insight-text" class="mt-2 text-sm leading-6 text-slate-600">
+                  <p class="text-sm font-medium text-ink">Dica</p>
+                  <p id="action-insight-text" class="mt-1 text-sm text-muted">
                     O fluxo sera ajustado automaticamente conforme a campanha avanca.
                   </p>
                 </div>
@@ -155,57 +149,57 @@
           </div>
         </article>
 
-        <article class="min-w-0 rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-panel">
-          <div class="flex flex-col gap-5">
-            <div class="flex items-start justify-between gap-4">
+        <article class="min-w-0 rounded-xl border border-line bg-white p-5">
+          <div class="flex flex-col gap-4">
+            <div class="flex items-start justify-between gap-3">
               <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Progresso</p>
-                <h2 class="mt-2 font-display text-2xl text-ink">Acompanhamento da execucao</h2>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
+                <p class="text-xs font-medium text-muted">Progresso</p>
+                <h2 class="mt-1 text-lg font-semibold text-ink">Acompanhamento</h2>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
                   <span id="runtime-profile-badge" class="status-badge status-badge--muted">Perfil conservador</span>
-                  <span id="runtime-profile-copy" class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Fonte: preset</span>
+                  <span id="runtime-profile-copy" class="text-xs text-muted">Fonte: preset</span>
                 </div>
               </div>
-              <span id="progress-caption" class="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">0%</span>
+              <span id="progress-caption" class="rounded-md bg-gray-100 px-2.5 py-1.5 text-xs font-semibold text-muted">0%</span>
             </div>
-            <div class="overflow-hidden rounded-full bg-slate-100">
-              <div id="progress-fill" class="progress-fill h-4 rounded-full" style="width: 0%"></div>
+            <div class="overflow-hidden rounded-full bg-gray-100">
+              <div id="progress-fill" class="progress-fill h-2 rounded-full" style="width: 0%"></div>
             </div>
-            <p id="progress-summary" class="text-sm leading-6 text-slate-600">Nenhuma atividade registrada ainda.</p>
-            <p id="daily-limit-summary" class="text-sm leading-6 text-slate-500">Hoje: 0 envios (sem limite diario)</p>
+            <p id="progress-summary" class="text-sm text-muted">Nenhuma atividade registrada ainda.</p>
+            <p id="daily-limit-summary" class="text-sm text-muted">Hoje: 0 envios (sem limite diario)</p>
             <dl class="stats-grid">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="rounded-lg border border-line bg-gray-50 p-3">
                 <dt class="metric-label">Enviados</dt>
-                <dd id="sent" class="mt-2 text-2xl font-semibold text-ink">{{ stats.sent }}</dd>
+                <dd id="sent" class="mt-1 text-xl font-semibold text-ink">{{ stats.sent }}</dd>
               </div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="rounded-lg border border-line bg-gray-50 p-3">
                 <dt class="metric-label">Falhas</dt>
-                <dd id="failed" class="mt-2 text-2xl font-semibold text-ink">{{ stats.failed }}</dd>
+                <dd id="failed" class="mt-1 text-xl font-semibold text-ink">{{ stats.failed }}</dd>
               </div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="rounded-lg border border-line bg-gray-50 p-3">
                 <dt class="metric-label">Pendentes</dt>
-                <dd id="pending" class="mt-2 text-2xl font-semibold text-ink">{{ stats.pending }}</dd>
+                <dd id="pending" class="mt-1 text-xl font-semibold text-ink">{{ stats.pending }}</dd>
               </div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="rounded-lg border border-line bg-gray-50 p-3">
                 <dt class="metric-label">Total</dt>
-                <dd id="total" class="mt-2 text-2xl font-semibold text-ink">{{ stats.total }}</dd>
+                <dd id="total" class="mt-1 text-xl font-semibold text-ink">{{ stats.total }}</dd>
               </div>
             </dl>
-            <div class="grid gap-3 md:grid-cols-3">
-              <div class="metric-focus-card">
-                <p class="metric-label">Tempo estimado</p>
-                <p id="eta-value" class="metric-focus-card__value">--</p>
-                <p id="eta-note" class="metric-focus-card__note">Recalculado conforme a execucao.</p>
+            <div class="stats-strip">
+              <div class="stats-strip__item">
+                <p class="stats-strip__label">Tempo estimado</p>
+                <p id="eta-value" class="stats-strip__value">--</p>
+                <p id="eta-note" class="stats-strip__note">Recalculado conforme a execucao.</p>
               </div>
-              <div class="metric-focus-card">
-                <p class="metric-label">Velocidade</p>
-                <p id="speed-value" class="metric-focus-card__value">--</p>
-                <p id="speed-note" class="metric-focus-card__note">Config.: --</p>
+              <div class="stats-strip__item">
+                <p class="stats-strip__label">Velocidade</p>
+                <p id="speed-value" class="stats-strip__value">--</p>
+                <p id="speed-note" class="stats-strip__note">Config.: --</p>
               </div>
-              <div class="metric-focus-card">
-                <p class="metric-label">Resultado</p>
-                <p id="result-value" class="metric-focus-card__value">Aguardando</p>
-                <p id="result-note" class="metric-focus-card__note">Sem envio em andamento.</p>
+              <div class="stats-strip__item">
+                <p class="stats-strip__label">Resultado</p>
+                <p id="result-value" class="stats-strip__value">Aguardando</p>
+                <p id="result-note" class="stats-strip__note">Sem envio em andamento.</p>
               </div>
             </div>
           </div>
@@ -217,56 +211,66 @@
           id="results-section"
           data-testid="results-section"
           tabindex="-1"
-          class="min-w-0 rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-panel xl:col-span-2"
+          class="results-shell min-w-0 xl:col-span-2"
         >
-          <div class="flex flex-col gap-6">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Resultados da campanha</p>
-                <h2 id="results-headline" class="mt-2 font-display text-2xl text-ink">Carregando leitura final</h2>
-                <p id="results-summary" class="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+          <div class="results-layout">
+            <div class="results-header">
+              <div class="results-header__main">
+                <p class="text-xs font-medium text-muted">Resultados</p>
+                <h2 id="results-headline" class="mt-1 text-lg font-semibold text-ink">Carregando leitura final</h2>
+                <p id="results-summary" class="mt-2 max-w-2xl text-sm text-muted">
                   O sistema esta consolidando os indicadores mais relevantes para a operacao.
                 </p>
               </div>
-              <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Leitura rapida</p>
-                <p id="results-insight-pill" class="mt-2 text-sm font-semibold text-ink">Sem dados suficientes ainda</p>
+              <div class="results-header__insight">
+                <p class="text-xs font-medium text-muted">Resumo</p>
+                <p id="results-insight-pill" class="mt-1 text-sm font-medium text-ink">Sem dados suficientes ainda</p>
               </div>
             </div>
 
-            <div class="results-grid">
-              <div class="result-card">
+            <div class="results-grid results-grid--kpi">
+              <div class="result-card result-card--kpi">
                 <p class="metric-label">Taxa de entrega</p>
-                <p id="results-success-rate" class="mt-2 text-3xl font-semibold text-ink">0%</p>
+                <p id="results-success-rate" class="mt-1 text-2xl font-semibold text-ink">0%</p>
               </div>
-              <div class="result-card">
+              <div class="result-card result-card--kpi">
                 <p class="metric-label">Cobertura processada</p>
-                <p id="results-coverage-rate" class="mt-2 text-3xl font-semibold text-ink">0%</p>
+                <p id="results-coverage-rate" class="mt-1 text-2xl font-semibold text-ink">0%</p>
               </div>
-              <div class="result-card">
+              <div class="result-card result-card--kpi">
                 <p class="metric-label">Duracao</p>
-                <p id="results-duration" class="mt-2 text-3xl font-semibold text-ink">--</p>
+                <p id="results-duration" class="mt-1 text-2xl font-semibold text-ink">--</p>
               </div>
-              <div class="result-card">
+              <div class="result-card result-card--kpi">
                 <p class="metric-label">Janela</p>
-                <p id="results-window" class="mt-2 text-base font-semibold text-ink">Aguardando execucao</p>
+                <p id="results-window" class="mt-1 text-sm font-medium text-ink">Aguardando execucao</p>
               </div>
             </div>
 
-            <div class="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-              <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Distribuicao final</p>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Resumo operacional sem repetir a tabela de contatos.</p>
-                  </div>
+            <div id="results-reprocessing" class="results-reprocessing hidden">
+              <div class="results-reprocessing__content">
+                <div class="results-reprocessing__copy">
+                  <p class="text-xs font-medium text-brand">Reprocessamento de falhas</p>
+                  <p id="results-reprocessing-summary" class="mt-1 text-sm text-muted">
+                    Nenhum reprocessamento parcial em andamento.
+                  </p>
                 </div>
-                <div id="results-distribution" class="mt-5 flex flex-wrap gap-3"></div>
+                <div id="results-reprocessing-badges" class="results-reprocessing__badges"></div>
               </div>
-              <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Falhas que pedem acao</p>
-                <div id="results-failures" class="mt-4 space-y-3">
-                  <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+            </div>
+
+            <div class="results-panels">
+              <div class="results-panel">
+                <div class="results-panel__header">
+                  <p class="text-xs font-medium text-muted">Distribuicao</p>
+                  <p class="mt-1 text-sm text-muted">Resumo operacional consolidado.</p>
+                </div>
+                <div id="results-distribution" class="results-panel__body mt-4 flex flex-wrap gap-2"></div>
+              </div>
+              <div class="results-panel">
+                <p class="text-xs font-medium text-muted">Falhas</p>
+                <div id="results-failures" class="results-panel__body mt-3 space-y-2">
+                  <div class="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-4 text-sm text-muted">
                     Nenhuma falha relevante identificada ate agora.
                   </div>
                 </div>
@@ -275,115 +279,128 @@
           </div>
         </article>
 
-        <article class="min-w-0 rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-panel">
-          <div class="flex flex-col gap-6">
+        <article class="min-w-0 rounded-xl border border-line bg-white p-5">
+          <div class="flex flex-col gap-5">
             <div>
-              <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Mensagem e validacao</p>
-              <h2 class="mt-2 font-display text-2xl text-ink">Prepare a campanha antes do envio</h2>
+              <p class="text-xs font-medium text-muted">Mensagem e validacao</p>
+              <h2 class="mt-1 text-lg font-semibold text-ink">Prepare a campanha antes do envio</h2>
             </div>
 
-            <form id="template-form" method="post" action="/campaigns/{{ campaign.id }}/template" class="space-y-4">
-              <label class="space-y-2">
-                <span class="text-sm font-semibold text-slate-700">Mensagem da campanha</span>
+            <form id="template-form" method="post" action="/campaigns/{{ campaign.id }}/template" class="space-y-3">
+              <label class="block space-y-1.5">
+                <span class="text-sm font-medium text-gray-700">Mensagem da campanha</span>
                 <textarea
                   name="message_template"
                   rows="5"
-                  class="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-base leading-7 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
+                  class="w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm leading-relaxed outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 >{{ campaign.message_template }}</textarea>
               </label>
-              <div class="flex flex-wrap gap-3">
+              <div class="flex flex-wrap items-center gap-2">
                 <button type="submit" id="save-template-button" class="secondary-button">Salvar mensagem</button>
-                <p class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Variavel disponivel: {{'{{nome}}'}}
-                </p>
+                <span class="rounded-md border border-line bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-muted">
+                  Variavel: {{'{{nome}}'}}
+                </span>
               </div>
             </form>
 
-            <form id="settings-form" class="space-y-4 rounded-[24px] border border-slate-200 bg-white p-5">
-              <div class="flex flex-wrap items-start justify-between gap-3">
+            <form id="settings-form" class="settings-shell">
+              <div class="settings-header">
                 <div>
-                  <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Configuracoes operacionais</p>
-                  <p class="mt-2 text-sm leading-6 text-slate-600">Essas configuracoes controlam ritmo, janela e seguranca operacional da campanha.</p>
+                  <p class="text-xs font-medium text-brand">Configuracoes operacionais</p>
+                  <p class="mt-1 text-sm text-muted">Ritmo, janela e seguranca operacional da campanha.</p>
                 </div>
-                <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Janela ativa: 08h-20h</span>
+                <span id="settings-window-pill" class="settings-window-pill">Janela: {{ stats.send_window_start or '08:00' }}-{{ stats.send_window_end or '20:00' }}</span>
               </div>
               <input type="hidden" name="speed_profile" value="{{ stats.speed_profile or 'conservative' }}" />
-              <div class="speed-profile-shell">
+              <div class="settings-profile-shell">
                 <div class="speed-profile-switch" role="group" aria-label="Modo de velocidade">
-                  <button type="button" class="speed-profile-option" data-speed-profile="conservative">Modo conservador</button>
-                  <button type="button" class="speed-profile-option" data-speed-profile="aggressive">Modo agressivo</button>
+                  <button type="button" class="speed-profile-option" data-speed-profile="conservative">Conservador</button>
+                  <button type="button" class="speed-profile-option" data-speed-profile="aggressive">Agressivo</button>
                 </div>
                 <div class="speed-profile-meta">
                   <span id="speed-profile-badge" class="status-badge status-badge--muted">Conservador</span>
-                  <p id="speed-profile-description" class="text-sm leading-6 text-slate-600">Conservador: prioriza estabilidade e previsibilidade.</p>
+                  <p id="speed-profile-description" class="text-sm text-muted">Conservador: prioriza estabilidade e previsibilidade.</p>
                 </div>
               </div>
-              <div class="grid gap-4 md:grid-cols-3">
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">Atraso minimo (segundos)</span>
+              <div class="settings-window-grid">
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Inicio da janela</span>
                   <input
-                    type="number"
-                    min="1"
-                    max="3600"
-                    name="send_delay_min_seconds"
-                    value="{{ stats.send_delay_min_seconds or 15 }}"
-                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
+                    type="time"
+                    step="3600"
+                    name="send_window_start"
+                    value="{{ stats.send_window_start or '08:00' }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">Atraso maximo (segundos)</span>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Fim da janela</span>
                   <input
-                    type="number"
-                    min="1"
-                    max="3600"
-                    name="send_delay_max_seconds"
-                    value="{{ stats.send_delay_max_seconds or 45 }}"
-                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
+                    type="time"
+                    step="3600"
+                    name="send_window_end"
+                    value="{{ stats.send_window_end or '20:00' }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
-                </label>
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">Pausa minima entre lotes (segundos)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="3600"
-                    name="batch_pause_min_seconds"
-                    value="{{ stats.batch_pause_min_seconds or 25 }}"
-                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
-                  />
-                </label>
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">Pausa maxima entre lotes (segundos)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="3600"
-                    name="batch_pause_max_seconds"
-                    value="{{ stats.batch_pause_max_seconds or 40 }}"
-                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
-                  />
-                </label>
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">Maximo de envios por dia</span>
-                  <input
-                    type="number"
-                    min="0"
-                    name="daily_limit"
-                    value="{{ stats.daily_limit or 0 }}"
-                    class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:bg-white focus:ring-4 focus:ring-brand/10"
-                  />
-                  <p class="text-xs text-slate-500">Use 0 para deixar sem limite diario.</p>
                 </label>
               </div>
-              <div class="flex flex-wrap gap-3">
+              <div class="settings-input-grid">
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Atraso minimo (s)</span>
+                  <input
+                    type="number" min="1" max="3600"
+                    name="send_delay_min_seconds"
+                    value="{{ stats.send_delay_min_seconds or 5 }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  />
+                </label>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Atraso maximo (s)</span>
+                  <input
+                    type="number" min="1" max="3600"
+                    name="send_delay_max_seconds"
+                    value="{{ stats.send_delay_max_seconds or 10 }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  />
+                </label>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Pausa min. lote (s)</span>
+                  <input
+                    type="number" min="0" max="3600"
+                    name="batch_pause_min_seconds"
+                    value="{{ stats.batch_pause_min_seconds or 5 }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  />
+                </label>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Pausa max. lote (s)</span>
+                  <input
+                    type="number" min="0" max="3600"
+                    name="batch_pause_max_seconds"
+                    value="{{ stats.batch_pause_max_seconds or 10 }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  />
+                </label>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Max. envios/dia</span>
+                  <input
+                    type="number" min="0"
+                    name="daily_limit"
+                    value="{{ stats.daily_limit or 0 }}"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  />
+                  <p class="text-xs text-muted">0 = sem limite diario.</p>
+                </label>
+              </div>
+              <div class="settings-actions">
                 <button type="submit" id="save-settings-button" class="secondary-button">Salvar configuracoes</button>
               </div>
             </form>
 
-            <form id="upload-form" class="space-y-4">
-              <div class="rounded-[24px] border border-dashed border-slate-300 bg-slate-50 p-5">
-                <label class="space-y-2" for="csv-file-input">
-                  <span class="text-sm font-semibold text-slate-700">Arquivo CSV</span>
+            <form id="upload-form" class="space-y-3">
+              <div class="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+                <label class="block space-y-1.5" for="csv-file-input">
+                  <span class="text-sm font-medium text-gray-700">Arquivo CSV</span>
                   <input
                     id="csv-file-input"
                     type="file"
@@ -393,86 +410,79 @@
                     class="file-picker-input"
                   />
                 </label>
-                <p class="mt-4 text-sm leading-6 text-slate-500">
-                  Campos aceitos: <code>nome,telefone,email</code> ou o formato legado <code>NOME_CLIENTE,TELEFONE,E_MAIL</code>.
+                <p class="mt-3 text-sm text-muted">
+                  Campos aceitos: <code>nome,telefone,email</code> ou <code>NOME_CLIENTE,TELEFONE,E_MAIL</code>.
                 </p>
               </div>
-              <div class="flex flex-wrap gap-3">
-                <button type="submit" id="upload-submit" class="secondary-button">Enviar arquivo CSV</button>
-                <button type="button" id="manual-contact-toggle" class="secondary-button">Adicionar cliente manualmente</button>
+              <div class="flex flex-wrap gap-2">
+                <button type="submit" id="upload-submit" class="secondary-button">Enviar CSV</button>
+                <button type="button" id="manual-contact-toggle" class="secondary-button">Adicionar manualmente</button>
               </div>
             </form>
 
-            <form id="manual-contact-form" class="hidden space-y-4 rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+            <form id="manual-contact-form" class="hidden space-y-3 rounded-lg border border-line bg-gray-50 p-4">
               <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Cadastro manual</p>
-                <p class="mt-2 text-sm leading-6 text-slate-600">Preencha os dados do cliente para adicionar um contato sem usar CSV.</p>
+                <p class="text-xs font-medium text-brand">Cadastro manual</p>
+                <p class="mt-1 text-sm text-muted">Preencha os dados do cliente para adicionar sem CSV.</p>
               </div>
-              <div class="grid gap-4 md:grid-cols-2">
-                <label class="space-y-2 md:col-span-2">
-                  <span class="text-sm font-semibold text-slate-700">Nome <span class="text-danger">*</span></span>
+              <div class="grid gap-3 md:grid-cols-2">
+                <label class="block space-y-1.5 md:col-span-2">
+                  <span class="text-sm font-medium text-gray-700">Nome <span class="text-danger">*</span></span>
                   <input
-                    type="text"
-                    name="name"
-                    required
-                    maxlength="120"
-                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    type="text" name="name" required maxlength="120"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">Telefone <span class="text-danger">*</span></span>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">Telefone <span class="text-danger">*</span></span>
                   <input
-                    type="text"
-                    name="phone"
-                    required
-                    maxlength="30"
-                    placeholder="+55 81999999999"
-                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    type="text" name="phone" required maxlength="30" placeholder="+55 81999999999"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
-                  <p class="text-xs text-slate-500">Formato: <code>+55 DDD + numero</code>. Exemplo: <code>+55 81999999999</code>.</p>
+                  <p class="text-xs text-muted">Formato: +55 DDD + numero</p>
                 </label>
-                <label class="space-y-2">
-                  <span class="text-sm font-semibold text-slate-700">E-mail <span class="text-slate-500">(opcional)</span></span>
+                <label class="block space-y-1.5">
+                  <span class="text-sm font-medium text-gray-700">E-mail <span class="text-muted">(opcional)</span></span>
                   <input
-                    type="email"
-                    name="email"
-                    maxlength="255"
-                    placeholder="cliente@empresa.com"
-                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+                    type="email" name="email" maxlength="255" placeholder="cliente@empresa.com"
+                    class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
               </div>
-              <div class="flex flex-wrap gap-3">
+              <div class="flex flex-wrap gap-2">
                 <button type="submit" id="manual-contact-submit" class="secondary-button">Salvar cliente</button>
                 <button type="button" id="manual-contact-cancel" class="secondary-button">Fechar</button>
               </div>
-              <p id="manual-contact-feedback" class="text-sm text-slate-500">Nome e telefone sao obrigatorios.</p>
+              <p id="manual-contact-feedback" class="text-sm text-muted">Nome e telefone sao obrigatorios.</p>
             </form>
 
-            <div id="upload-summary" class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-              <p class="text-sm font-semibold text-ink">Nenhum CSV enviado ainda.</p>
-              <p class="mt-2 text-sm leading-6 text-slate-500">Envie sua base para liberar a simulacao e o teste controlado.</p>
+            <div id="upload-summary" class="rounded-lg border border-line bg-gray-50 p-4">
+              <p class="text-sm font-medium text-ink">Nenhum CSV enviado ainda.</p>
+              <p class="mt-1 text-sm text-muted">Envie sua base para liberar a simulacao e o teste controlado.</p>
             </div>
           </div>
         </article>
 
-        <article class="min-w-0 rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-panel">
-          <div class="flex flex-col gap-6">
-            <div class="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Dados</p>
-                <h2 class="mt-2 font-display text-2xl text-ink">Contatos importados</h2>
+        <article class="contacts-shell min-w-0">
+          <div class="contacts-layout">
+            <div class="contacts-header">
+              <div class="contacts-header__title">
+                <p class="text-xs font-medium text-muted">Base de contatos</p>
+                <h2 class="mt-1 text-lg font-semibold text-ink">Contatos importados</h2>
               </div>
               <button
                 type="button"
                 id="clear-imported-contacts"
-                class="danger-button hidden whitespace-nowrap"
+                class="danger-button contacts-header__clear hidden whitespace-nowrap"
                 data-testid="clear-imported-contacts"
               >
                 Limpar base importada
               </button>
-              <form method="get" action="/campaigns/{{ campaign.id }}" class="flex w-full flex-wrap items-center gap-3 lg:w-auto lg:justify-end">
-                <label for="status-filter-trigger" class="whitespace-nowrap text-sm font-semibold text-slate-700">Filtrar status</label>
+            </div>
+
+            <form method="get" action="/campaigns/{{ campaign.id }}" class="contacts-toolbar">
+              <div class="contacts-toolbar__group">
+                <label for="status-filter-trigger" class="contacts-toolbar__label">Filtrar</label>
                 <div class="filter-select-shell">
                   <input type="hidden" id="status-filter-input" name="status" value="{{ contacts_status_filter or '' }}" />
                   <button
@@ -485,7 +495,7 @@
                     data-testid="status-filter-trigger"
                   >
                     <span id="status-filter-label">Todos</span>
-                    <svg class="h-4 w-4 text-slate-500 transition-transform" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                    <svg class="h-4 w-4 text-muted transition-transform" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                       <path d="m5 7.5 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
                     </svg>
                   </button>
@@ -516,64 +526,67 @@
                     </button>
                   </div>
                 </div>
-                <label for="contacts-per-page" class="whitespace-nowrap text-sm font-semibold text-slate-700">Por pagina</label>
+              </div>
+              <div class="contacts-toolbar__group contacts-toolbar__group--compact">
+                <label for="contacts-per-page" class="contacts-toolbar__label">Por pagina</label>
                 <select
                   id="contacts-per-page"
                   name="per_page"
-                  class="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-gray-700 outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 >
                   {% for option in [10, 25, 50] %}
                   <option value="{{ option }}" {% if contacts_page_size == option %}selected{% endif %}>{{ option }}</option>
                   {% endfor %}
                 </select>
-                <p class="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Filtro aplicado automaticamente</p>
-              </form>
-            </div>
+              </div>
+            </form>
 
-            <div class="data-summary-grid">
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div class="contacts-summary-grid">
+              <div class="contacts-summary-card">
                 <p class="metric-label">Validos</p>
-                <p id="valid-count" class="mt-2 text-2xl font-semibold text-ink">{{ stats.valid }}</p>
+                <p id="valid-count" class="mt-1 text-xl font-semibold text-ink">{{ stats.valid }}</p>
               </div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="contacts-summary-card">
                 <p class="metric-label">Invalidos</p>
-                <p id="invalid-count" class="mt-2 text-2xl font-semibold text-ink">{{ stats.invalid }}</p>
+                <p id="invalid-count" class="mt-1 text-xl font-semibold text-ink">{{ stats.invalid }}</p>
               </div>
-              <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div class="contacts-summary-card contacts-summary-card--wide">
                 <p class="metric-label">Resumo atual</p>
-                <p id="contacts-ready-copy" class="mt-2 text-lg font-semibold text-ink">Aguardando importacao</p>
+                <p id="contacts-ready-copy" class="mt-1 text-base font-medium text-ink">Aguardando importacao</p>
               </div>
             </div>
 
-            <p id="contacts-meta" class="text-sm leading-6 text-slate-500">
+            <p id="contacts-meta" class="contacts-meta">
               Total exibido: {{ contacts|length }} de {{ contacts_total }} registros. Pagina {{ contacts_page }} de {{ contacts_total_pages }}.
             </p>
 
-            <div data-testid="contacts-table-wrap" class="overflow-x-auto rounded-[24px] border border-slate-200">
-              <table class="min-w-full divide-y divide-slate-200 text-sm">
-                <thead class="bg-slate-50 text-left text-xs uppercase tracking-[0.25em] text-slate-500">
+            <div data-testid="contacts-table-wrap" class="contacts-table-wrap overflow-x-auto">
+              <table class="contacts-table min-w-full text-sm">
+                <thead class="text-left text-xs font-medium text-muted">
                   <tr>
-                    <th class="px-4 py-3">ID</th>
-                    <th class="px-4 py-3">Nome</th>
-                    <th class="px-4 py-3">Telefone CSV</th>
-                    <th class="px-4 py-3">Telefone valido</th>
-                    <th class="px-4 py-3">Email</th>
-                    <th class="px-4 py-3">Status</th>
-                    <th class="px-4 py-3">Observacao</th>
-                    <th class="px-4 py-3">Acao</th>
+                    <th class="px-3 py-2.5">ID</th>
+                    <th class="px-3 py-2.5">Nome</th>
+                    <th class="px-3 py-2.5">Telefone CSV</th>
+                    <th class="px-3 py-2.5">Telefone valido</th>
+                    <th class="px-3 py-2.5">Email</th>
+                    <th class="px-3 py-2.5">Status</th>
+                    <th class="px-3 py-2.5">Observacao</th>
+                    <th class="px-3 py-2.5">Acao</th>
                   </tr>
                 </thead>
-                <tbody id="contacts-body" class="divide-y divide-slate-100 bg-white">
+                <tbody id="contacts-body" class="divide-y divide-gray-100 bg-white">
                   {% for c in contacts %}
                   <tr>
-                    <td class="px-4 py-3">{{ c.id }}</td>
-                    <td class="px-4 py-3">{{ c.name }}</td>
-                    <td class="px-4 py-3">{{ c.phone_raw }}</td>
-                    <td class="px-4 py-3">{{ c.phone_e164 or '-' }}</td>
-                    <td class="px-4 py-3">{{ c.email }}</td>
-                    <td class="px-4 py-3">{{ c.status }}</td>
-                    <td class="px-4 py-3">{{ c.error_message or '-' }}</td>
-                    <td class="px-4 py-3">
+                    <td class="px-3 py-2.5">{{ c.id }}</td>
+                    <td class="px-3 py-2.5">{{ c.name }}</td>
+                    <td class="px-3 py-2.5">{{ c.phone_raw }}</td>
+                    <td class="px-3 py-2.5">{{ c.phone_e164 or '-' }}</td>
+                    <td class="px-3 py-2.5">{{ c.email }}</td>
+                    <td class="px-3 py-2.5">
+                      <span class="contact-status-pill contact-status-pill--{{ c.status }}">{{ c.status }}</span>
+                    </td>
+                    <td class="px-3 py-2.5">{{ c.error_message or '-' }}</td>
+                    <td class="px-3 py-2.5">
                       {% if campaign.status in ['draft', 'ready', 'paused'] %}
                       <button
                         type="button"
@@ -585,29 +598,29 @@
                         Excluir
                       </button>
                       {% else %}
-                      <span class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Bloqueado durante envio</span>
+                      <span class="text-xs text-muted">Bloqueado</span>
                       {% endif %}
                     </td>
                   </tr>
                   {% else %}
                   <tr>
-                    <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-500">Nenhum contato para este filtro.</td>
+                    <td colspan="8" class="px-3 py-8 text-center text-sm text-muted">Nenhum contato para este filtro.</td>
                   </tr>
                   {% endfor %}
                 </tbody>
               </table>
             </div>
 
-            <div id="contacts-pagination" class="flex flex-wrap items-center gap-3">
+            <div id="contacts-pagination" class="contacts-pagination">
               <button
                 type="button"
                 id="contacts-prev-page"
                 class="secondary-button"
                 {% if contacts_page <= 1 %}disabled{% endif %}
               >
-                Pagina anterior
+                Anterior
               </button>
-              <span id="contacts-page-indicator" class="rounded-full border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600">
+              <span id="contacts-page-indicator" class="rounded-md border border-line bg-gray-50 px-3 py-2 text-sm font-medium text-muted">
                 Pagina {{ contacts_page }} de {{ contacts_total_pages }}
               </span>
               <button
@@ -616,51 +629,51 @@
                 class="secondary-button"
                 {% if contacts_page >= contacts_total_pages %}disabled{% endif %}
               >
-                Proxima pagina
+                Proxima
               </button>
             </div>
           </div>
         </article>
       </section>
 
-      <section class="rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-panel">
-        <div class="flex flex-wrap items-center justify-between gap-4">
+      <section class="rounded-xl border border-line bg-white p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p class="text-sm font-semibold uppercase tracking-[0.25em] text-brand">Atividade operacional</p>
-            <h2 class="mt-2 font-display text-2xl text-ink">Resumo, marcos e incidentes</h2>
-            <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-              A tela prioriza sinal operacional. O detalhe tecnico so aparece quando realmente ajuda a diagnosticar falhas.
+            <p class="text-xs font-medium text-muted">Atividade</p>
+            <h2 class="mt-1 text-lg font-semibold text-ink">Resumo, marcos e incidentes</h2>
+            <p class="mt-1 text-sm text-muted">
+              Sinal operacional prioritario. Detalhe tecnico aparece quando necessario.
             </p>
           </div>
-          <button type="button" id="logs-toggle" class="secondary-button">Mostrar atividade tecnica</button>
+          <button type="button" id="logs-toggle" class="secondary-button">Mostrar logs</button>
         </div>
 
-        <div class="mt-6 space-y-6">
+        <div class="mt-5 space-y-5">
           <div>
             <div class="flex items-center justify-between gap-3">
               <div>
-                <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Resumo operacional</p>
-                <p class="mt-2 text-sm leading-6 text-slate-600">Volume consolidado de eventos para evitar listas gigantes durante campanhas grandes.</p>
+                <p class="text-xs font-medium text-muted">Resumo operacional</p>
+                <p class="mt-1 text-sm text-muted">Volume consolidado de eventos.</p>
               </div>
-              <span id="activity-total-events" class="rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">0 eventos</span>
+              <span id="activity-total-events" class="rounded-md bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-muted">0 eventos</span>
             </div>
-            <div id="activity-summary-grid" class="mt-5 activity-summary-grid"></div>
+            <div id="activity-summary-grid" class="mt-4 activity-summary-grid"></div>
           </div>
 
           <div class="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-            <div class="rounded-[24px] border border-slate-200 bg-slate-50 p-5">
-              <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Marcos recentes</p>
-              <div id="activity-milestones" class="mt-4 space-y-3"></div>
+            <div class="rounded-lg border border-line bg-gray-50 p-4">
+              <p class="text-xs font-medium text-muted">Marcos recentes</p>
+              <div id="activity-milestones" class="mt-3 space-y-2"></div>
             </div>
-            <div id="logs-panel" data-testid="logs-panel" class="hidden rounded-[24px] border border-slate-200 bg-slate-50 p-5">
+            <div id="logs-panel" data-testid="logs-panel" class="hidden rounded-lg border border-line bg-gray-50 p-4">
               <div class="flex items-center justify-between gap-3">
                 <div>
-                  <p class="text-sm font-semibold uppercase tracking-[0.2em] text-brand">Incidentes agrupados</p>
-                  <p class="mt-2 text-sm leading-6 text-slate-600">Cada card consolida eventos repetidos do mesmo tipo para nao inflar a tela.</p>
+                  <p class="text-xs font-medium text-muted">Incidentes agrupados</p>
+                  <p class="mt-1 text-sm text-muted">Eventos repetidos consolidados.</p>
                 </div>
-                <span class="rounded-full bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Detalhe tecnico</span>
+                <span class="rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-muted">Detalhe tecnico</span>
               </div>
-              <div id="activity-incidents" class="mt-4 space-y-3"></div>
+              <div id="activity-incidents" class="mt-3 space-y-2"></div>
             </div>
           </div>
         </div>
@@ -713,10 +726,10 @@
 
     <dialog id="confirm-modal" class="app-modal">
       <form method="dialog" class="app-modal__card">
-        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-danger">Confirmacao critica</p>
-        <h2 id="confirm-title" class="mt-3 font-display text-2xl text-ink">Confirmar acao</h2>
-        <p id="confirm-message" class="mt-3 text-sm leading-6 text-slate-600"></p>
-        <div class="mt-6 flex flex-wrap gap-3">
+        <p class="text-xs font-medium text-danger">Confirmacao</p>
+        <h2 id="confirm-title" class="mt-2 text-lg font-semibold text-ink">Confirmar acao</h2>
+        <p id="confirm-message" class="mt-2 text-sm text-muted"></p>
+        <div class="mt-5 flex flex-wrap gap-2">
           <button type="button" id="confirm-submit" class="danger-button">Confirmar</button>
           <button type="button" id="confirm-cancel" class="secondary-button">Cancelar</button>
         </div>

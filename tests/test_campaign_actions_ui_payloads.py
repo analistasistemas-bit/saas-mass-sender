@@ -521,8 +521,8 @@ def test_stats_payload_exposes_observed_performance_and_estimates():
     assert payload['performance']['observed_seconds_per_contact'] == 60
     assert payload['performance']['observed_contacts_per_minute'] == 1.0
     assert payload['estimates']['remaining_seconds_observed'] == 120
-    assert payload['estimates']['configured_batch_pause_min'] == 25
-    assert payload['estimates']['configured_batch_pause_max'] == 40
+    assert payload['estimates']['configured_batch_pause_min'] == 5
+    assert payload['estimates']['configured_batch_pause_max'] == 10
     assert 'Config.:' in payload['estimates']['label_configured_pace']
 
 
@@ -825,6 +825,54 @@ def test_build_results_payload_returns_aggregated_operational_summary():
     assert 'recommended_action' in first_failure
     assert first_failure['technical_detail_available'] is True
     assert first_failure['fingerprint']
+
+
+def test_build_results_payload_includes_failed_reprocessing_summary_after_completed_campaign_restart():
+    session = build_session()
+    completed_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    reprocess_started_at = datetime.now(timezone.utc) - timedelta(minutes=10)
+    campaign = Campaign(
+        name='Reprocessamento',
+        message_template='Oi {{nome}}',
+        status='ready',
+        started_at=reprocess_started_at,
+        finished_at=None,
+    )
+    session.add(campaign)
+    session.commit()
+    session.refresh(campaign)
+
+    session.add_all(
+        [
+            Contact(campaign_id=campaign.id, name='Sent original', phone_raw='1', phone_e164='+551', email='a@a', status='sent', sent_at=completed_at),
+            Contact(
+                campaign_id=campaign.id,
+                name='Sent reprocessado',
+                phone_raw='2',
+                phone_e164='+552',
+                email='b@b',
+                status='sent',
+                sent_at=reprocess_started_at + timedelta(seconds=1),
+            ),
+            Contact(campaign_id=campaign.id, name='Failed pendente', phone_raw='3', phone_e164='+553', email='c@c', status='pending'),
+        ]
+    )
+    session.flush()
+    log_event(session, campaign.id, None, 'campaign_state_change', 'campaign completed')
+    log_event(session, campaign.id, None, 'campaign_state_change', 'campaign restarted; mode=failed; reset=2')
+    session.commit()
+
+    payload = build_results_payload(session, campaign.id)
+
+    assert payload['headline'] == 'Fila reaberta'
+    assert payload['reprocessing'] == {
+        'active': True,
+        'mode': 'failed',
+        'reset_contacts': 2,
+        'queued_contacts': 1,
+        'sent_in_reprocessing': 0,
+        'failed_in_reprocessing': 0,
+    }
 
 
 def test_build_activity_payload_groups_high_volume_logs():

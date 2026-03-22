@@ -4,7 +4,7 @@
 
   const campaignId = root.dataset.campaignId;
   let contactsPage = Number(root.dataset.contactsPage || '1');
-  let contactsPerPage = Number(root.dataset.contactsPerPage || '25');
+  let contactsPerPage = Number(root.dataset.contactsPerPage || '10');
   let contactsFilter = (root.dataset.contactsFilter || '').trim();
   const isTestRequired = Number(root.dataset.testRequired || '1') !== 0;
 
@@ -16,6 +16,7 @@
   const workerServiceCopy = document.getElementById('worker-service-copy');
   const bridgeServiceBadge = document.getElementById('bridge-service-badge');
   const bridgeServiceCopy = document.getElementById('bridge-service-copy');
+  const serviceHealthLayout = document.getElementById('service-health-layout');
   const serviceAlertPanel = document.getElementById('service-alert-panel');
   const serviceAlertTitle = document.getElementById('service-alert-title');
   const serviceAlertMessage = document.getElementById('service-alert-message');
@@ -66,6 +67,9 @@
   const resultsCoverageRate = document.getElementById('results-coverage-rate');
   const resultsDuration = document.getElementById('results-duration');
   const resultsWindow = document.getElementById('results-window');
+  const resultsReprocessing = document.getElementById('results-reprocessing');
+  const resultsReprocessingSummary = document.getElementById('results-reprocessing-summary');
+  const resultsReprocessingBadges = document.getElementById('results-reprocessing-badges');
   const resultsDistribution = document.getElementById('results-distribution');
   const resultsFailures = document.getElementById('results-failures');
   const activityTotalEvents = document.getElementById('activity-total-events');
@@ -88,6 +92,7 @@
   const speedProfileBadge = document.getElementById('speed-profile-badge');
   const speedProfileDescription = document.getElementById('speed-profile-description');
   const speedProfileOptions = Array.from(document.querySelectorAll('.speed-profile-option'));
+  const settingsWindowPill = document.getElementById('settings-window-pill');
   const uploadSubmitButton = document.getElementById('upload-submit');
   const logsToggle = document.getElementById('logs-toggle');
   const logsPanel = document.getElementById('logs-panel');
@@ -172,6 +177,7 @@
   const operationalProcessingCopy = {
     deleteCampaign: 'Processando exclusao da campanha...',
     restart: 'Processando reabertura da campanha...',
+    reprocessFailed: 'Processando reabertura apenas das falhas...',
     testRun: 'Processando inicio de teste...',
     start: 'Processando inicio da campanha...',
     pause: 'Processando pausa da campanha...',
@@ -198,6 +204,7 @@
     resume: 'Retomar campanha',
     cancel: 'Cancelar campanha',
     restart: 'Reiniciar campanha',
+    reprocessFailed: 'Reprocessar falhados',
     refresh: 'Atualizar agora',
     viewResults: 'Ver resultados',
     showLogs: 'Ver atividade',
@@ -258,7 +265,7 @@
   function showToast(type, message) {
     const item = document.createElement('div');
     item.className = `toast toast--${type}`;
-    item.innerHTML = `<div><p class="font-semibold text-slate-900">${message}</p></div>`;
+    item.innerHTML = `<div><p class="font-medium text-ink">${message}</p></div>`;
     toastRegion?.appendChild(item);
     window.setTimeout(() => item.remove(), 3600);
   }
@@ -366,6 +373,10 @@
     }
 
     const latestAlert = serviceHealth?.latest_alert || null;
+    if (serviceHealthLayout) {
+      serviceHealthLayout.classList.toggle('service-health-layout--centered', !latestAlert);
+      serviceHealthLayout.classList.toggle('service-health-layout--with-alert', Boolean(latestAlert));
+    }
     if (serviceAlertPanel) {
       serviceAlertPanel.classList.toggle('hidden', !latestAlert);
     }
@@ -490,6 +501,29 @@
 
   function syncSettingsProfileFromInputs() {
     updateSpeedProfileUi(resolveSettingsProfile());
+  }
+
+  function syncSettingsProfileFromStats(currentStats) {
+    const selected = String(currentStats?.speed_profile || currentStats?.runtime_profile?.selected_profile || '').trim().toLowerCase();
+    if (selected === 'aggressive' || selected === 'conservative') {
+      updateSpeedProfileUi(selected);
+      return;
+    }
+    const inferred = resolveSettingsProfile();
+    updateSpeedProfileUi(inferred === 'custom' ? 'conservative' : inferred);
+  }
+
+  function formatWindowLabel(startValue, endValue) {
+    const start = String(startValue || '08:00').slice(0, 5);
+    const end = String(endValue || '20:00').slice(0, 5);
+    return `Janela: ${start}-${end}`;
+  }
+
+  function syncSettingsWindowPillFromInputs() {
+    if (!settingsForm || !settingsWindowPill) return;
+    const startInput = settingsForm.querySelector('input[name="send_window_start"]');
+    const endInput = settingsForm.querySelector('input[name="send_window_end"]');
+    settingsWindowPill.textContent = formatWindowLabel(startInput?.value, endInput?.value);
   }
 
   function syncContactsUrl() {
@@ -652,6 +686,70 @@
     return 'draft';
   }
 
+  function parseIsoDate(value) {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  function getPausedReasonText(pauseReason) {
+    if (pauseReason === 'consecutive_failures') {
+      return {
+        shortLabel: 'Pausa automatica',
+        headline: 'Pausada automaticamente por falhas consecutivas.',
+        summary: 'O sistema interrompeu a fila apos 5 falhas seguidas para evitar degradacao maior.',
+        action: 'Revise as falhas recentes e retome apenas quando o problema operacional estiver claro.',
+      };
+    }
+    if (pauseReason === 'daily_limit_reached') {
+      return {
+        shortLabel: 'Limite diario atingido',
+        headline: 'Pausada automaticamente por limite diario.',
+        summary: 'O limite de envios configurado para hoje foi atingido.',
+        action: 'Retome manualmente no proximo dia ou aumente o limite antes de continuar.',
+      };
+    }
+    if (pauseReason === 'worker_recovering') {
+      return {
+        shortLabel: 'Recuperando motor',
+        headline: 'Pausada automaticamente para recuperar o motor de envio.',
+        summary: 'O servico interno de envio ficou instavel e entrou em recuperacao.',
+        action: 'A campanha volta sozinha quando o motor estabilizar.',
+      };
+    }
+    if (pauseReason === 'bridge_recovering') {
+      return {
+        shortLabel: 'Recuperando sessao',
+        headline: 'Pausada automaticamente para recuperar a sessao do WhatsApp.',
+        summary: 'O bridge perdeu a saude esperada durante o envio.',
+        action: 'A campanha volta sozinha quando a sessao ficar saudavel novamente.',
+      };
+    }
+    return {
+      shortLabel: 'Envio pausado',
+      headline: 'Campanha pausada.',
+      summary: 'A fila permanece preservada sem novos envios.',
+      action: 'Retome manualmente quando quiser continuar o processamento.',
+    };
+  }
+
+  function getStalledProcessingText(currentStats, metrics) {
+    if (String(currentStats.status || '').toLowerCase() !== 'running') return null;
+    if (Number(metrics.pending || 0) <= 0) return null;
+    if (Number(metrics.cycleSent || 0) > 0 || Number(metrics.cycleFailed || 0) > 0) return null;
+
+    const lastActivityAt = parseIsoDate(currentStats.performance?.last_activity_at || currentStats.updated_at);
+    if (!lastActivityAt) return null;
+    const idleSeconds = Math.round((Date.now() - lastActivityAt.getTime()) / 1000);
+    if (idleSeconds < 90) return null;
+
+    return {
+      headline: 'Fila travada em processamento, recuperando contatos.',
+      summary: 'O sistema detectou que a fila ficou sem progresso recente e deve reenfileirar os contatos presos.',
+      action: 'Se isso persistir por mais de 2 minutos, atualize a tela ou revise a atividade tecnica.',
+    };
+  }
+
   function getNarrativeStatus(uiState, currentStats, session) {
     if (!session?.connected && (uiState === 'draft' || uiState === 'ready-awaiting-test')) {
       return 'Conecte o WhatsApp para liberar a validacao final e reduzir risco operacional.';
@@ -666,6 +764,8 @@
       return 'Validacao concluida. Voce pode iniciar a campanha com seguranca.';
     }
     if (uiState === 'running') {
+      const stalled = getStalledProcessingText(currentStats, getProgressMetrics(currentStats));
+      if (stalled) return `${stalled.headline} ${stalled.action}`;
       const lastError = String(session?.lastError || '').toLowerCase();
       if (lastError.includes('detached frame')) {
         return 'Envio em risco: a sessao do WhatsApp respondeu com falha interna e pode exigir reinicio da conexao.';
@@ -679,9 +779,8 @@
       return 'Sessao do WhatsApp em recuperacao automatica. O envio retoma sozinho quando o bridge voltar a ficar saudavel.';
     }
     if (uiState === 'paused') {
-      if (currentStats.pause_reason === 'daily_limit_reached') return 'Campanha pausada: limite diario atingido. Retome manualmente no proximo dia.';
-      if (currentStats.pause_reason === 'consecutive_failures') return 'Campanha pausada: 5 falhas consecutivas detectadas. Revise a operacao antes de retomar.';
-      return 'Campanha pausada. Nenhuma mensagem sera enviada ate a retomada.';
+      const pausedText = getPausedReasonText(currentStats.pause_reason);
+      return `${pausedText.headline} ${pausedText.action}`;
     }
     if (uiState === 'completed') {
       return Number(currentStats.failed || 0) > 0
@@ -692,7 +791,7 @@
     return 'Aguardando proximo passo.';
   }
 
-  function getPrimaryAction(uiState) {
+  function getPrimaryAction(uiState, currentStats) {
     if (uiState === 'draft') return { key: 'dryRun', label: actionLabels.dryRun, description: 'Valide a base antes de qualquer disparo.' };
     if (uiState === 'ready-awaiting-test') {
       return { key: 'testRun', label: actionLabels.testRun, description: 'Use uma amostra para confirmar mensagem, numero e entrega.' };
@@ -702,7 +801,10 @@
     }
     if (uiState === 'running') return { key: 'pause', label: actionLabels.pause, description: 'Pause o envio se precisar interromper a operacao.' };
     if (uiState === 'recovering') return { key: 'refresh', label: actionLabels.refresh, description: 'O sistema esta tentando recuperar a sessao automaticamente.' };
-    if (uiState === 'paused') return { key: 'resume', label: actionLabels.resume, description: 'Retome o envio do ponto em que a campanha parou.' };
+    if (uiState === 'paused') {
+      const pausedText = getPausedReasonText(currentStats?.pause_reason);
+      return { key: 'resume', label: actionLabels.resume, description: `${pausedText.headline} ${pausedText.action}` };
+    }
     if (uiState === 'completed') return { key: 'viewResults', label: actionLabels.viewResults, description: 'Revise o resultado e exporte falhas se necessario.' };
     if (uiState === 'cancelled') return { key: 'restart', label: actionLabels.restart, description: 'Recrie a fila para uma nova execucao segura.' };
     return { key: 'dryRun', label: actionLabels.dryRun, description: 'Valide a base antes de qualquer disparo.' };
@@ -725,6 +827,9 @@
       if (Number(currentStats.failed || 0) > 0) items.push({ key: 'exportFailures', label: actionLabels.exportFailures, href: `/campaigns/${campaignId}/failures/export` });
     }
     if (uiState === 'completed' || uiState === 'cancelled') {
+      if (uiState === 'completed' && Number(currentStats.failed || 0) > 0) {
+        items.push({ key: 'reprocessFailed', label: actionLabels.reprocessFailed });
+      }
       if (Number(currentStats.failed || 0) > 0 || uiState === 'completed') {
         items.push({ key: 'exportFailures', label: actionLabels.exportFailures, href: `/campaigns/${campaignId}/failures/export` });
       }
@@ -829,6 +934,11 @@
     }
 
     if (currentStats.status === 'running') {
+      const stalled = getStalledProcessingText(currentStats, metrics);
+      if (stalled) {
+        progressSummary.textContent = stalled.headline;
+        return;
+      }
       const currentIndex =
         metrics.cycleTotal > 0
           ? Math.min(metrics.cycleSent + metrics.cycleFailed + 1, Math.max(metrics.cycleTotal, 1))
@@ -837,6 +947,9 @@
       progressSummary.textContent = `Enviando mensagem ${currentIndex} de ${currentTotal}.`;
     } else if (progressState === 'recovering') {
       progressSummary.textContent = 'Recuperando a sessao do WhatsApp para retomar a fila automaticamente.';
+    } else if (progressState === 'paused') {
+      const pausedText = getPausedReasonText(currentStats.pause_reason);
+      progressSummary.textContent = pausedText.headline;
     } else if (currentStats.status === 'completed') {
       progressSummary.textContent = `Resultado final: ${metrics.sent} enviados e ${metrics.failed} falhas.`;
     } else if (metrics.isReopenedQueue) {
@@ -860,28 +973,40 @@
     const done = metrics.cycleTotal > 0 ? metrics.cycleSent + metrics.cycleFailed : metrics.completed;
     const total = metrics.cycleTotal > 0 ? metrics.cycleTotal : Math.max(metrics.totalProcessable, 0);
     const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    const pausedText = getPausedReasonText(currentStats.pause_reason);
+    const stalled = getStalledProcessingText(currentStats, metrics);
 
     executionProgressTitle.textContent =
       uiState === 'recovering'
         ? currentStats.pause_reason === 'worker_recovering'
           ? 'Recuperando motor'
           : 'Recuperando sessao'
+        : stalled
+        ? 'Recuperando fila'
         : uiState === 'paused'
-        ? 'Envio pausado'
+        ? pausedText.shortLabel
         : 'Envio em andamento';
     executionProgressCopy.textContent =
       uiState === 'recovering'
         ? currentStats.pause_reason === 'worker_recovering'
           ? 'O sistema esta recuperando o motor de envio e volta a processar a fila automaticamente quando ele estabilizar.'
           : 'O sistema reinicia a sessao do WhatsApp e volta a enviar automaticamente quando ela estabilizar.'
+        : stalled
+        ? `${stalled.summary} ${stalled.action}`
         : uiState === 'paused'
-        ? 'A fila permanece preservada. Os envios continuam apenas quando voce retomar.'
+        ? `${pausedText.summary} ${pausedText.action}`
         : 'Os envios continuam mesmo se voce sair desta pagina. Use Abortar apenas para interromper a campanha.';
     executionProgressFill.style.width = `${pct}%`;
     executionProgressStats.textContent = `${done} de ${total} processados. ${metrics.pending} restante${metrics.pending === 1 ? '' : 's'}.`;
     if (executionProgressPillLabel) {
       executionProgressPillLabel.textContent =
-        uiState === 'recovering' ? 'Recuperando sessao' : uiState === 'paused' ? 'Envio pausado' : 'Envio em andamento';
+        uiState === 'recovering'
+          ? 'Recuperando sessao'
+          : stalled
+          ? 'Recuperando fila'
+          : uiState === 'paused'
+          ? pausedText.shortLabel
+          : 'Envio em andamento';
     }
     syncExecutionBarLayout();
   }
@@ -889,15 +1014,15 @@
   function renderUploadSummary(currentStats) {
     if (Number(currentStats.total || 0) === 0) {
       uploadSummary.innerHTML = `
-        <p class="text-sm font-semibold text-ink">Nenhum CSV enviado ainda.</p>
-        <p class="mt-2 text-sm leading-6 text-slate-500">Envie sua base para liberar a simulacao e o teste controlado.</p>
+        <p class="text-sm font-medium text-ink">Nenhum CSV enviado ainda.</p>
+        <p class="mt-1 text-sm text-muted">Envie sua base para liberar a simulacao e o teste controlado.</p>
       `;
       return;
     }
 
     uploadSummary.innerHTML = `
-      <p class="text-sm font-semibold text-ink">${currentStats.valid || 0} contato${Number(currentStats.valid || 0) > 1 ? 's' : ''} pronto${Number(currentStats.valid || 0) > 1 ? 's' : ''} para envio</p>
-      <p class="mt-2 text-sm leading-6 text-slate-500">Base importada com ${currentStats.valid || 0} validos e ${currentStats.invalid || 0} invalidos.</p>
+      <p class="text-sm font-medium text-ink">${currentStats.valid || 0} contato${Number(currentStats.valid || 0) > 1 ? 's' : ''} pronto${Number(currentStats.valid || 0) > 1 ? 's' : ''} para envio</p>
+      <p class="mt-1 text-sm text-muted">Base importada com ${currentStats.valid || 0} validos e ${currentStats.invalid || 0} invalidos.</p>
     `;
   }
 
@@ -905,6 +1030,7 @@
     const metrics = payload || {};
     const distribution = metrics.distribution || {};
     const processed = Number(metrics.processed || 0);
+    const reprocessing = metrics.reprocessing || null;
 
     resultsHeadline.textContent = metrics.headline || 'Resultados da campanha';
     resultsSummary.textContent =
@@ -943,10 +1069,45 @@
       )
       .join('');
 
+    if (reprocessing && reprocessing.mode === 'failed') {
+      resultsReprocessing?.classList.remove('hidden');
+      if (resultsReprocessingSummary) {
+        const queueLabel =
+          Number(reprocessing.queued_contacts || 0) > 0
+            ? `${reprocessing.queued_contacts} contato${Number(reprocessing.queued_contacts || 0) > 1 ? 's' : ''} aguardando nova tentativa`
+            : 'Nenhum contato aguardando nova tentativa';
+        resultsReprocessingSummary.textContent =
+          `${reprocessing.reset_contacts || 0} contatos reenfileirados a partir das falhas da campanha anterior. ${queueLabel}.`;
+      }
+      if (resultsReprocessingBadges) {
+        resultsReprocessingBadges.innerHTML = [
+          { label: 'Reenfileirados', value: reprocessing.reset_contacts || 0, tone: 'muted' },
+          { label: 'Pendentes agora', value: reprocessing.queued_contacts || 0, tone: 'warn' },
+          { label: 'Ja reenviados', value: reprocessing.sent_in_reprocessing || 0, tone: 'success' },
+          { label: 'Falharam de novo', value: reprocessing.failed_in_reprocessing || 0, tone: 'error' },
+        ]
+          .map(
+            (item) => `
+              <div class="distribution-pill distribution-pill--${item.tone}">
+                <span>${escapeHtml(item.label)}</span>
+                <strong>${escapeHtml(item.value)}</strong>
+              </div>
+            `,
+          )
+          .join('');
+      }
+    } else {
+      resultsReprocessing?.classList.add('hidden');
+      if (resultsReprocessingSummary) {
+        resultsReprocessingSummary.textContent = 'Nenhum reprocessamento parcial em andamento.';
+      }
+      if (resultsReprocessingBadges) resultsReprocessingBadges.innerHTML = '';
+    }
+
     const failures = Array.isArray(metrics.top_failures) ? metrics.top_failures : [];
     if (!failures.length) {
       resultsFailures.innerHTML = `
-        <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+        <div class="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-4 text-sm text-muted">
           ${metrics.is_fallback ? 'Sem detalhamento de falhas nesta atualizacao.' : 'Nenhuma falha relevante identificada nesta campanha.'}
         </div>
       `;
@@ -959,11 +1120,11 @@
           <article class="incident-card incident-card--${escapeHtml(item.tone || 'error')}">
             <div class="flex items-center justify-between gap-3">
               <div>
-                <p class="text-sm font-semibold text-ink">${escapeHtml(item.human_title || item.label)}</p>
-                <p class="mt-1 text-sm leading-6 text-slate-600">${escapeHtml(item.human_summary || item.label || '-')}</p>
-                <p class="mt-2 text-sm font-medium text-slate-500">${escapeHtml(item.recommended_action || 'Revise os detalhes tecnicos para decidir o proximo passo.')}</p>
+                <p class="text-sm font-medium text-ink">${escapeHtml(item.human_title || item.label)}</p>
+                <p class="mt-1 text-sm text-muted">${escapeHtml(item.human_summary || item.label || '-')}</p>
+                <p class="mt-2 text-sm font-medium text-muted">${escapeHtml(item.recommended_action || 'Revise os detalhes tecnicos para decidir o proximo passo.')}</p>
               </div>
-              <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">${escapeHtml(item.count)} ocorrencia${Number(item.count) > 1 ? 's' : ''}</span>
+              <span class="rounded-md bg-white px-2.5 py-1 text-xs font-medium text-muted">${escapeHtml(item.count)} ocorrencia${Number(item.count) > 1 ? 's' : ''}</span>
             </div>
           </article>
         `,
@@ -983,7 +1144,7 @@
         (card) => `
           <article class="activity-summary-card activity-summary-card--${escapeHtml(card.tone || 'info')}">
             <p class="metric-label">${escapeHtml(card.label)}</p>
-            <p class="mt-3 text-2xl font-semibold text-ink">${escapeHtml(card.count || 0)}</p>
+            <p class="mt-2 text-xl font-semibold text-ink">${escapeHtml(card.count || 0)}</p>
           </article>
         `,
       )
@@ -996,8 +1157,8 @@
               <article class="activity-item activity-item--${escapeHtml(item.tone || 'info')}">
                 <div class="flex items-start justify-between gap-3">
                   <div>
-                    <p class="text-sm font-semibold text-ink">${escapeHtml(item.title)}</p>
-                    <p class="mt-1 text-sm leading-6 text-slate-600">${escapeHtml(item.summary)}</p>
+                    <p class="text-sm font-medium text-ink">${escapeHtml(item.title)}</p>
+                    <p class="mt-1 text-sm text-muted">${escapeHtml(item.summary)}</p>
                   </div>
                   <time class="activity-item__time">${escapeHtml(formatCompactDate(item.time))}</time>
                 </div>
@@ -1006,7 +1167,7 @@
           )
           .join('')
       : `
-          <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+          <div class="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-4 text-sm text-muted">
             ${activity.is_fallback ? 'Detalhamento operacional indisponivel nesta atualizacao.' : 'Nenhum marco relevante registrado ainda.'}
           </div>
         `;
@@ -1018,18 +1179,18 @@
               <article class="incident-card incident-card--${escapeHtml(item.tone || 'info')}">
                 <div class="flex items-start justify-between gap-3">
                   <div>
-                    <p class="text-sm font-semibold text-ink">${escapeHtml(item.human_title || item.title)}</p>
-                    <p class="mt-1 text-sm leading-6 text-slate-600">${escapeHtml(item.human_summary || item.summary)}</p>
-                    <p class="mt-2 text-sm font-medium text-slate-500">${escapeHtml(item.recommended_action || 'Revise os detalhes tecnicos para diagnosticar este incidente.')}</p>
+                    <p class="text-sm font-medium text-ink">${escapeHtml(item.human_title || item.title)}</p>
+                    <p class="mt-1 text-sm text-muted">${escapeHtml(item.human_summary || item.summary)}</p>
+                    <p class="mt-2 text-sm font-medium text-muted">${escapeHtml(item.recommended_action || 'Revise os detalhes tecnicos para diagnosticar este incidente.')}</p>
                   </div>
                   <div class="text-right">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">${escapeHtml(item.count)}x</p>
-                    <p class="mt-1 text-xs text-slate-500">${escapeHtml(formatCompactDate(item.time))}</p>
+                    <p class="text-xs font-medium text-muted">${escapeHtml(item.count)}x</p>
+                    <p class="mt-1 text-xs text-muted">${escapeHtml(formatCompactDate(item.time))}</p>
                   </div>
                 </div>
-                <details class="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                  <summary class="cursor-pointer text-sm font-semibold text-slate-700">Ver detalhes tecnicos</summary>
-                  <div class="mt-3 grid gap-2 text-sm text-slate-500">
+                <details class="mt-4 rounded-lg border border-line bg-white px-3 py-2.5">
+                  <summary class="cursor-pointer text-sm font-medium text-gray-700">Ver detalhes tecnicos</summary>
+                  <div class="mt-3 grid gap-2 text-sm text-muted">
                     <p>Resumo tecnico: ${escapeHtml(item.technical_summary || 'Sem detalhe tecnico adicional.')}</p>
                     <p>Classe de erro: ${escapeHtml(item.error_class || '-')}</p>
                     <p>Status HTTP: ${escapeHtml(item.http_status || '-')}</p>
@@ -1040,7 +1201,7 @@
           )
           .join('')
       : `
-          <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
+          <div class="rounded-lg border border-dashed border-gray-300 bg-white px-3 py-4 text-sm text-muted">
             Nenhum incidente agrupado para exibir.
           </div>
         `;
@@ -1095,7 +1256,7 @@
   }
 
   function updatePrimaryButtons(uiState, currentStats) {
-    const primary = getPrimaryAction(uiState);
+    const primary = getPrimaryAction(uiState, currentStats);
     currentPrimaryAction = primary.key;
     primaryTitle.textContent = primary.label;
     primaryDescription.textContent = primary.description;
@@ -1132,12 +1293,17 @@
     });
   }
 
+  function renderContactStatus(status) {
+    const safeStatus = String(status || 'pending').toLowerCase();
+    return `<span class="contact-status-pill contact-status-pill--${escapeHtml(safeStatus)}">${escapeHtml(safeStatus)}</span>`;
+  }
+
   function renderContactsTable(payload) {
     const items = payload.items || [];
     const pagination = payload.pagination || {};
     contactsMeta.textContent = `Total exibido: ${items.length} de ${pagination.total || 0} registros. Pagina ${pagination.page || 1} de ${pagination.total_pages || 1}.`;
     contactsPage = Number(pagination.page || 1);
-    contactsPerPage = Number(pagination.page_size || contactsPerPage || 25);
+    contactsPerPage = Number(pagination.page_size || contactsPerPage || 10);
     if (contactsPerPageSelect) contactsPerPageSelect.value = String(contactsPerPage);
     if (contactsPageIndicator) {
       contactsPageIndicator.textContent = `Pagina ${pagination.page || 1} de ${pagination.total_pages || 1}`;
@@ -1148,7 +1314,7 @@
     const canDeleteContacts = ['draft', 'ready', 'paused'].includes(String(stats.status || '').toLowerCase());
 
     if (!items.length) {
-      contactsBody.innerHTML = '<tr><td colspan="8" class="px-4 py-10 text-center text-sm text-slate-500">Nenhum contato para este filtro.</td></tr>';
+      contactsBody.innerHTML = '<tr><td colspan="8" class="px-3 py-8 text-center text-sm text-muted">Nenhum contato para este filtro.</td></tr>';
       return;
     }
 
@@ -1156,18 +1322,18 @@
       .map(
         (c) => `
           <tr>
-            <td class="px-4 py-3">${escapeHtml(c.id)}</td>
-            <td class="px-4 py-3">${escapeHtml(c.name)}</td>
-            <td class="px-4 py-3">${escapeHtml(c.phone_raw)}</td>
-            <td class="px-4 py-3">${escapeHtml(c.phone_e164 || '-')}</td>
-            <td class="px-4 py-3">${escapeHtml(c.email)}</td>
-            <td class="px-4 py-3">${escapeHtml(c.status)}</td>
-            <td class="px-4 py-3">${escapeHtml(c.error_message || '-')}</td>
-            <td class="px-4 py-3">
+            <td class="px-3 py-2.5">${escapeHtml(c.id)}</td>
+            <td class="px-3 py-2.5">${escapeHtml(c.name)}</td>
+            <td class="px-3 py-2.5">${escapeHtml(c.phone_raw)}</td>
+            <td class="px-3 py-2.5">${escapeHtml(c.phone_e164 || '-')}</td>
+            <td class="px-3 py-2.5">${escapeHtml(c.email)}</td>
+            <td class="px-3 py-2.5">${renderContactStatus(c.status)}</td>
+            <td class="px-3 py-2.5">${escapeHtml(c.error_message || '-')}</td>
+            <td class="px-3 py-2.5">
               ${
                 canDeleteContacts
                   ? `<button type="button" class="table-action-button table-action-button--danger" data-contact-action="delete" data-contact-id="${escapeHtml(c.id)}" data-contact-name="${escapeHtml(c.name || 'Contato sem nome')}">Excluir</button>`
-                  : '<span class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Bloqueado durante envio</span>'
+                  : '<span class="text-xs text-muted">Bloqueado</span>'
               }
             </td>
           </tr>
@@ -1258,13 +1424,18 @@
       const maxInput = settingsForm.querySelector('input[name="send_delay_max_seconds"]');
       const batchPauseMinInput = settingsForm.querySelector('input[name="batch_pause_min_seconds"]');
       const batchPauseMaxInput = settingsForm.querySelector('input[name="batch_pause_max_seconds"]');
+      const sendWindowStartInput = settingsForm.querySelector('input[name="send_window_start"]');
+      const sendWindowEndInput = settingsForm.querySelector('input[name="send_window_end"]');
       const dailyInput = settingsForm.querySelector('input[name="daily_limit"]');
-      if (minInput) minInput.value = String(stats.send_delay_min_seconds ?? 15);
-      if (maxInput) maxInput.value = String(stats.send_delay_max_seconds ?? 45);
-      if (batchPauseMinInput) batchPauseMinInput.value = String(stats.batch_pause_min_seconds ?? 25);
-      if (batchPauseMaxInput) batchPauseMaxInput.value = String(stats.batch_pause_max_seconds ?? 40);
+      if (minInput) minInput.value = String(stats.send_delay_min_seconds ?? 5);
+      if (maxInput) maxInput.value = String(stats.send_delay_max_seconds ?? 10);
+      if (batchPauseMinInput) batchPauseMinInput.value = String(stats.batch_pause_min_seconds ?? 5);
+      if (batchPauseMaxInput) batchPauseMaxInput.value = String(stats.batch_pause_max_seconds ?? 10);
+      if (sendWindowStartInput) sendWindowStartInput.value = String(stats.send_window_start ?? '08:00');
+      if (sendWindowEndInput) sendWindowEndInput.value = String(stats.send_window_end ?? '20:00');
       if (dailyInput) dailyInput.value = String(stats.daily_limit ?? 0);
-      updateSpeedProfileUi(stats.speed_profile || stats.runtime_profile?.selected_profile || 'conservative');
+      syncSettingsWindowPillFromInputs();
+      syncSettingsProfileFromStats(stats);
     }
     if (runtimeProfileBadge) {
       const runtimeProfile = stats.runtime_profile || {};
@@ -1362,7 +1533,6 @@
   }
 
   async function runCampaignAction(actionKey, button) {
-    const restartMode = stats.status === 'completed' || stats.status === 'cancelled' ? 'all' : 'failed';
     const configs = {
       dryRun: { url: `/campaigns/${campaignId}/dry-run`, method: 'POST', loading: 'Simulando...', success: 'Simulacao concluida.' },
       testRun: { url: `/campaigns/${campaignId}/test-run`, method: 'POST', loading: 'Enviando teste...', success: 'Amostra enviada para confirmacao.' },
@@ -1374,9 +1544,19 @@
       restart: {
         url: `/campaigns/${campaignId}/restart`,
         method: 'POST',
-        body: new URLSearchParams({ mode: restartMode }),
+        body: new URLSearchParams({ mode: stats.status === 'completed' || stats.status === 'cancelled' ? 'all' : 'failed' }),
         loading: 'Reiniciando...',
-        success: restartMode === 'all' ? 'Fila recriada para reenviar toda a campanha.' : 'Fila recriada para uma nova tentativa.',
+        success:
+          stats.status === 'completed' || stats.status === 'cancelled'
+            ? 'Fila recriada para reenviar toda a campanha.'
+            : 'Fila recriada para uma nova tentativa.',
+      },
+      reprocessFailed: {
+        url: `/campaigns/${campaignId}/restart`,
+        method: 'POST',
+        body: new URLSearchParams({ mode: 'failed' }),
+        loading: 'Reenfileirando falhas...',
+        success: 'Fila recriada para reenviar so as falhas.',
       },
     };
 
@@ -1401,7 +1581,7 @@
     const config = configs[actionKey];
     if (!config) return;
     setActionStatusOverride(operationalProcessingCopy[actionKey] || '');
-    if (['restart', 'testRun', 'start', 'resume'].includes(actionKey)) {
+    if (['restart', 'reprocessFailed', 'testRun', 'start', 'resume'].includes(actionKey)) {
       suppressOverviewWarnUntil = Date.now() + 12000;
     }
 
@@ -1511,6 +1691,8 @@
       send_delay_max_seconds: String(formData.get('send_delay_max_seconds') || '').trim(),
       batch_pause_min_seconds: String(formData.get('batch_pause_min_seconds') || '').trim(),
       batch_pause_max_seconds: String(formData.get('batch_pause_max_seconds') || '').trim(),
+      send_window_start: String(formData.get('send_window_start') || '').trim(),
+      send_window_end: String(formData.get('send_window_end') || '').trim(),
       daily_limit: String(formData.get('daily_limit') || '').trim(),
     });
     setButtonLoading(saveSettingsButton, 'Salvando...', true);
@@ -1546,6 +1728,10 @@
     await submitSettingsForm();
   });
 
+  settingsForm
+    ?.querySelectorAll('input[name="send_window_start"], input[name="send_window_end"]')
+    .forEach((input) => input.addEventListener('input', () => syncSettingsWindowPillFromInputs()));
+
   uploadForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const formData = new FormData(uploadForm);
@@ -1565,8 +1751,8 @@
           : '';
       showToast('success', `Upload concluido com sucesso.${replacedCopy}`);
       uploadSummary.innerHTML = `
-        <p class="text-sm font-semibold text-ink">${data.summary.valid || 0} contato${Number(data.summary.valid || 0) > 1 ? 's' : ''} pronto${Number(data.summary.valid || 0) > 1 ? 's' : ''} para envio</p>
-        <p class="mt-2 text-sm leading-6 text-slate-500">Resumo: ${data.summary.valid || 0} validos, ${data.summary.invalid || 0} invalidos e ${data.summary.inserted || 0} inseridos.${replacedCopy}</p>
+        <p class="text-sm font-medium text-ink">${data.summary.valid || 0} contato${Number(data.summary.valid || 0) > 1 ? 's' : ''} pronto${Number(data.summary.valid || 0) > 1 ? 's' : ''} para envio</p>
+        <p class="mt-2 text-sm text-muted">Resumo: ${data.summary.valid || 0} validos, ${data.summary.invalid || 0} invalidos e ${data.summary.inserted || 0} inseridos.${replacedCopy}</p>
       `;
       if (csvFileInput) csvFileInput.value = '';
       if (Number(data.summary.inserted || 0) > 0 || Number(data.summary.total || 0) > 0) {
@@ -1606,14 +1792,14 @@
     if (!payload.get('name')) {
       if (manualContactFeedback) {
         manualContactFeedback.textContent = 'Informe o nome do cliente.';
-        manualContactFeedback.className = 'text-sm text-red-600';
+        manualContactFeedback.className = 'text-sm text-danger';
       }
       return;
     }
     if (!payload.get('phone')) {
       if (manualContactFeedback) {
         manualContactFeedback.textContent = 'Informe o telefone do cliente.';
-        manualContactFeedback.className = 'text-sm text-red-600';
+        manualContactFeedback.className = 'text-sm text-danger';
       }
       return;
     }
@@ -1622,7 +1808,7 @@
     setActionStatusOverride(operationalProcessingCopy.addManualContact);
     if (manualContactFeedback) {
       manualContactFeedback.textContent = 'Validando telefone e salvando contato...';
-      manualContactFeedback.className = 'text-sm text-slate-500';
+      manualContactFeedback.className = 'text-sm text-muted';
     }
     try {
       const response = await fetch(`/campaigns/${campaignId}/contacts/manual`, {
@@ -1644,7 +1830,7 @@
       manualContactForm.reset();
       if (manualContactFeedback) {
         manualContactFeedback.textContent = 'Cliente adicionado com sucesso.';
-        manualContactFeedback.className = 'text-sm text-emerald-700';
+        manualContactFeedback.className = 'text-sm text-success';
       }
       showToast('success', data.message || 'Cliente adicionado manualmente.');
       clearActionStatusOverride();
@@ -1652,7 +1838,7 @@
     } catch (error) {
       if (manualContactFeedback) {
         manualContactFeedback.textContent = String(error.message || 'Falha ao adicionar cliente.');
-        manualContactFeedback.className = 'text-sm text-red-600';
+        manualContactFeedback.className = 'text-sm text-danger';
       }
       clearActionStatusOverride();
       showToast('error', String(error.message || error));
@@ -1748,6 +1934,17 @@
   secondaryActions?.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-action-key]');
     if (!target) return;
+    if (target.dataset.actionKey === 'reprocessFailed') {
+      openConfirm({
+        title: 'Reprocessar falhados',
+        message: 'Somente os contatos com falha ou processamento interrompido voltarao para a fila.',
+        onConfirm: async () => {
+          await runCampaignAction('reprocessFailed', target);
+          confirmModal?.close();
+        },
+      });
+      return;
+    }
     await runCampaignAction(target.dataset.actionKey, target);
   });
 
@@ -1799,7 +1996,7 @@
   contactsPerPageSelect?.addEventListener('change', async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLSelectElement)) return;
-    contactsPerPage = Number(target.value || '25');
+    contactsPerPage = Number(target.value || '10');
     contactsPage = 1;
     await pollContacts();
   });

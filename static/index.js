@@ -36,7 +36,7 @@
   function showToast(type, message) {
     const item = document.createElement('div');
     item.className = `toast toast--${type}`;
-    item.innerHTML = `<div><p class="font-semibold text-slate-900">${message}</p></div>`;
+    item.innerHTML = `<div><p class="font-medium text-ink">${message}</p></div>`;
     toastRegion?.appendChild(item);
     window.setTimeout(() => item.remove(), 3600);
   }
