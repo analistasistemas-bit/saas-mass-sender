@@ -164,8 +164,13 @@ Formato legado tambem suportado:
 ## Testes
 
 ```bash
-pytest -q
+./.venv/bin/pytest -q
+npx playwright test
 ```
+
+Detalhes da resolucao do ambiente de testes:
+
+- [Resolucao de Testes](/Users/mac/Desktop/IA/mass-sender/docs/TESTING_RESOLUTION.md)
 
 ## Observações
 
@@ -174,3 +179,4 @@ pytest -q
 - O frontend operacional atual foi redesenhado para uso local e cobre o fluxo de ponta a ponta.
 - Se o backend de envio falhar, o sistema preserva estado e tenta retry quando aplicável.
 - O bridge Node mantém sessão local do WhatsApp Web e expõe apenas `/health`, `/session/qr`, `/session/restart` e `/messages/send-text`.
+# saas-mass-sender
