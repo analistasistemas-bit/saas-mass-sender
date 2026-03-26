@@ -129,12 +129,12 @@ def test_campaign_defaults_to_conservative_speed_profile():
     session.refresh(campaign)
 
     assert campaign.speed_profile == 'conservative'
-    assert campaign.send_delay_min_seconds == 5
-    assert campaign.send_delay_max_seconds == 10
-    assert campaign.batch_pause_min_seconds == 5
-    assert campaign.batch_pause_max_seconds == 10
-    assert campaign.batch_size_initial == 10
-    assert campaign.batch_size_max == 25
+    assert campaign.send_delay_min_seconds == 15
+    assert campaign.send_delay_max_seconds == 45
+    assert campaign.batch_pause_min_seconds == 25
+    assert campaign.batch_pause_max_seconds == 40
+    assert campaign.batch_size_initial == 5
+    assert campaign.batch_size_max == 15
 
 
 def test_update_campaign_operational_settings_applies_aggressive_preset():
@@ -147,22 +147,22 @@ def test_update_campaign_operational_settings_applies_aggressive_preset():
     ok, _message, settings = update_campaign_operational_settings(
         session,
         campaign.id,
-        3,
         8,
+        20,
         0,
         speed_profile='aggressive',
-        batch_pause_min_seconds=5,
-        batch_pause_max_seconds=10,
+        batch_pause_min_seconds=15,
+        batch_pause_max_seconds=30,
     )
 
     assert ok is True
     assert settings['speed_profile'] == 'aggressive'
-    assert settings['send_delay_min_seconds'] == 3
-    assert settings['send_delay_max_seconds'] == 8
-    assert settings['batch_pause_min_seconds'] == 5
-    assert settings['batch_pause_max_seconds'] == 10
-    assert settings['batch_size_initial'] == 15
-    assert settings['batch_size_max'] == 30
+    assert settings['send_delay_min_seconds'] == 8
+    assert settings['send_delay_max_seconds'] == 20
+    assert settings['batch_pause_min_seconds'] == 15
+    assert settings['batch_pause_max_seconds'] == 30
+    assert settings['batch_size_initial'] == 10
+    assert settings['batch_size_max'] == 25
 
     payload = stats_payload(session, campaign.id)
     assert payload['runtime_profile']['selected_profile'] == 'aggressive'
@@ -476,4 +476,4 @@ def test_bootstrap_campaign_columns_adds_missing_operational_fields(tmp_path):
                 'FROM campaigns WHERE id = 1'
             )
         ).fetchone()
-        assert saved == ('conservative', 5, 10, 5, 10, 10, 25, 2, 3, 2, 2, 5, 0, 0, None)
+        assert saved == ('conservative', 15, 45, 25, 40, 5, 15, 2, 3, 2, 2, 5, 0, 0, None)

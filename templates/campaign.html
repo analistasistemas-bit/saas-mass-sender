@@ -350,7 +350,7 @@
                   <input
                     type="number" min="1" max="3600"
                     name="send_delay_min_seconds"
-                    value="{{ stats.send_delay_min_seconds or 5 }}"
+                    value="{{ stats.send_delay_min_seconds or 15 }}"
                     class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
@@ -359,7 +359,7 @@
                   <input
                     type="number" min="1" max="3600"
                     name="send_delay_max_seconds"
-                    value="{{ stats.send_delay_max_seconds or 10 }}"
+                    value="{{ stats.send_delay_max_seconds or 45 }}"
                     class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
@@ -368,7 +368,7 @@
                   <input
                     type="number" min="0" max="3600"
                     name="batch_pause_min_seconds"
-                    value="{{ stats.batch_pause_min_seconds or 5 }}"
+                    value="{{ stats.batch_pause_min_seconds or 25 }}"
                     class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>
@@ -377,7 +377,7 @@
                   <input
                     type="number" min="0" max="3600"
                     name="batch_pause_max_seconds"
-                    value="{{ stats.batch_pause_max_seconds or 10 }}"
+                    value="{{ stats.batch_pause_max_seconds or 40 }}"
                     class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                   />
                 </label>

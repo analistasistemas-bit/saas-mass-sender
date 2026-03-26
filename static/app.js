@@ -116,16 +116,16 @@
   const executionBarStorageKey = `campaign:${campaignId}:execution-bar-collapsed`;
   const SPEED_PRESETS = {
     conservative: {
-      send_delay_min_seconds: 5,
-      send_delay_max_seconds: 10,
-      batch_pause_min_seconds: 5,
-      batch_pause_max_seconds: 10,
+      send_delay_min_seconds: 15,
+      send_delay_max_seconds: 45,
+      batch_pause_min_seconds: 25,
+      batch_pause_max_seconds: 40,
     },
     aggressive: {
-      send_delay_min_seconds: 3,
-      send_delay_max_seconds: 8,
-      batch_pause_min_seconds: 5,
-      batch_pause_max_seconds: 10,
+      send_delay_min_seconds: 8,
+      send_delay_max_seconds: 20,
+      batch_pause_min_seconds: 15,
+      batch_pause_max_seconds: 30,
     },
   };
 
@@ -147,10 +147,10 @@
     daily_limit: 0,
     pause_reason: null,
     speed_profile: 'conservative',
-    send_delay_min_seconds: 5,
-    send_delay_max_seconds: 10,
-    batch_pause_min_seconds: 5,
-    batch_pause_max_seconds: 10,
+    send_delay_min_seconds: 15,
+    send_delay_max_seconds: 45,
+    batch_pause_min_seconds: 25,
+    batch_pause_max_seconds: 40,
     runtime_profile: {
       selected_profile: 'conservative',
       effective_profile: 'conservative',
@@ -1427,10 +1427,10 @@
       const sendWindowStartInput = settingsForm.querySelector('input[name="send_window_start"]');
       const sendWindowEndInput = settingsForm.querySelector('input[name="send_window_end"]');
       const dailyInput = settingsForm.querySelector('input[name="daily_limit"]');
-      if (minInput) minInput.value = String(stats.send_delay_min_seconds ?? 5);
-      if (maxInput) maxInput.value = String(stats.send_delay_max_seconds ?? 10);
-      if (batchPauseMinInput) batchPauseMinInput.value = String(stats.batch_pause_min_seconds ?? 5);
-      if (batchPauseMaxInput) batchPauseMaxInput.value = String(stats.batch_pause_max_seconds ?? 10);
+      if (minInput) minInput.value = String(stats.send_delay_min_seconds ?? 15);
+      if (maxInput) maxInput.value = String(stats.send_delay_max_seconds ?? 45);
+      if (batchPauseMinInput) batchPauseMinInput.value = String(stats.batch_pause_min_seconds ?? 25);
+      if (batchPauseMaxInput) batchPauseMaxInput.value = String(stats.batch_pause_max_seconds ?? 40);
       if (sendWindowStartInput) sendWindowStartInput.value = String(stats.send_window_start ?? '08:00');
       if (sendWindowEndInput) sendWindowEndInput.value = String(stats.send_window_end ?? '20:00');
       if (dailyInput) dailyInput.value = String(stats.daily_limit ?? 0);

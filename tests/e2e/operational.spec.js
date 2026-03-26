@@ -31,12 +31,12 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
     daily_limit: 0,
     pause_reason: null,
     speed_profile: 'conservative',
-    send_delay_min_seconds: 5,
-    send_delay_max_seconds: 10,
-    batch_pause_min_seconds: 5,
-    batch_pause_max_seconds: 10,
-    batch_size_initial: 10,
-    batch_size_max: 25,
+    send_delay_min_seconds: 15,
+    send_delay_max_seconds: 45,
+    batch_pause_min_seconds: 25,
+    batch_pause_max_seconds: 40,
+    batch_size_initial: 5,
+    batch_size_max: 15,
     batch_growth_step: 2,
     batch_growth_streak_required: 3,
     batch_shrink_step: 2,
@@ -47,9 +47,9 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
     runtime_profile: {
       selected_profile: 'conservative',
       effective_profile: 'conservative',
-      batch_size_current: 10,
-      batch_pause_min_seconds: 5,
-      batch_pause_max_seconds: 10,
+      batch_size_current: 5,
+      batch_pause_min_seconds: 25,
+      batch_pause_max_seconds: 40,
       profile_source: 'preset',
     },
     performance: {
@@ -64,13 +64,13 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
     estimates: {
       remaining_seconds_observed: 0,
       remaining_seconds_conservative: 0,
-      configured_seconds_per_contact_min: 5,
-      configured_seconds_per_contact_max: 10,
-      configured_batch_pause_min: 5,
-      configured_batch_pause_max: 10,
+      configured_seconds_per_contact_min: 15,
+      configured_seconds_per_contact_max: 45,
+      configured_batch_pause_min: 25,
+      configured_batch_pause_max: 40,
       label_speed: 'Aquecendo medicao',
       label_eta: 'Calculando com base na execucao real',
-      label_configured_pace: 'Config.: 5-10s por envio + pausas operacionais',
+      label_configured_pace: 'Config.: 15-45s por envio + pausas operacionais',
     },
   };
   let overviewState = {
@@ -198,10 +198,10 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await page.route('**/campaigns/*/settings', async (route) => {
     const body = route.request().postData() || '';
     const params = new URLSearchParams(body);
-    const minDelay = Number(params.get('send_delay_min_seconds') || '5');
-    const maxDelay = Number(params.get('send_delay_max_seconds') || '10');
-    const batchPauseMin = Number(params.get('batch_pause_min_seconds') || '5');
-    const batchPauseMax = Number(params.get('batch_pause_max_seconds') || '10');
+    const minDelay = Number(params.get('send_delay_min_seconds') || '15');
+    const maxDelay = Number(params.get('send_delay_max_seconds') || '45');
+    const batchPauseMin = Number(params.get('batch_pause_min_seconds') || '25');
+    const batchPauseMax = Number(params.get('batch_pause_max_seconds') || '40');
     const sendWindowStart = params.get('send_window_start') || '08:00';
     const sendWindowEnd = params.get('send_window_end') || '20:00';
     const speedProfile = params.get('speed_profile') || 'conservative';
@@ -715,8 +715,8 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
   await expect(page.getByText('Configuracoes operacionais')).toBeVisible();
   await expect(page.locator('#speed-profile-badge')).toContainText('Conservador');
   await page.getByRole('button', { name: 'Agressivo' }).click();
-  await expect(page.locator('#settings-form input[name="send_delay_min_seconds"]')).toHaveValue('3');
-  await expect(page.locator('#settings-form input[name="batch_pause_max_seconds"]')).toHaveValue('10');
+  await expect(page.locator('#settings-form input[name="send_delay_min_seconds"]')).toHaveValue('8');
+  await expect(page.locator('#settings-form input[name="batch_pause_max_seconds"]')).toHaveValue('30');
   await expect(page.locator('#speed-profile-badge')).toContainText('Agressivo');
   await page.locator('#settings-form input[name="send_delay_min_seconds"]').fill('18');
   await page.locator('#settings-form input[name="send_delay_max_seconds"]').fill('48');
