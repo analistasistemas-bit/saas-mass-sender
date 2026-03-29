@@ -6,8 +6,9 @@ O sistema já inclui um frontend operacional completo em `templates/` e `static/
 
 Documentação operacional completa:
 
-- [Operations Guide](/Users/mac/Desktop/IA/mass-sender/docs/OPERATIONS.md)
-- [Guia de Uso do Aplicativo](/Users/mac/Desktop/IA/mass-sender/docs/USER_GUIDE.md)
+- [Operations Guide](/Users/diego/Desktop/IA/mass-sender-saas-vps/docs/OPERATIONS.md)
+- [Guia de Uso do Aplicativo](/Users/diego/Desktop/IA/mass-sender-saas-vps/docs/USER_GUIDE.md)
+- [Guia do Ambiente de Testes (Docker Local)](/Users/diego/Desktop/IA/mass-sender-saas-vps/docs/LOCAL_ENVIRONMENT.md)
 
 ## Recursos implementados
 

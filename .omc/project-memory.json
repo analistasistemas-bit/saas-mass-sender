@@ -1,0 +1,201 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1774795189631,
+  "projectRoot": "/Users/diego/Desktop/IA/mass-sender-saas-vps",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "@playwright/test",
+        "version": "1.53.1",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {
+      "test:e2e": "playwright test"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "static",
+      "tests"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "bugs": {
+      "path": "bugs",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1774795189594,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 6,
+      "lastAccessed": 1774795189605,
+      "keyFiles": [
+        "LOCAL_ENVIRONMENT.md",
+        "OPERATIONAL_CONTROLS.md",
+        "OPERATIONS.md",
+        "TESTING_RESOLUTION.md",
+        "USER_GUIDE.md"
+      ]
+    },
+    "services": {
+      "path": "services",
+      "purpose": "Business logic services",
+      "fileCount": 4,
+      "lastAccessed": 1774795189606,
+      "keyFiles": [
+        "__init__.py",
+        "campaign_service.py",
+        "send_engine.py",
+        "whatsapp.py"
+      ]
+    },
+    "static": {
+      "path": "static",
+      "purpose": "Static files",
+      "fileCount": 4,
+      "lastAccessed": 1774795189607,
+      "keyFiles": [
+        "app.js",
+        "common.js",
+        "index.js",
+        "styles.css"
+      ]
+    },
+    "templates": {
+      "path": "templates",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1774795189615,
+      "keyFiles": [
+        "campaign.html",
+        "index.html",
+        "login.html"
+      ]
+    },
+    "test-results": {
+      "path": "test-results",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1774795189615,
+      "keyFiles": []
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 13,
+      "lastAccessed": 1774795189615,
+      "keyFiles": [
+        "test_bridge_routes.py",
+        "test_campaign_actions_ui_payloads.py",
+        "test_campaign_state.py",
+        "test_csv_parser.py",
+        "test_env_loading.py"
+      ]
+    },
+    "utils": {
+      "path": "utils",
+      "purpose": "Utility functions",
+      "fileCount": 8,
+      "lastAccessed": 1774795189616,
+      "keyFiles": [
+        "__init__.py",
+        "config.py",
+        "csv_parser.py",
+        "daily_limit.py",
+        "message_compose.py"
+      ]
+    },
+    "wa-bridge": {
+      "path": "wa-bridge",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1774795189616,
+      "keyFiles": [
+        "Dockerfile",
+        "fetch-qr.js",
+        "package-lock.json",
+        "package.json",
+        "server.js"
+      ]
+    },
+    "tests/fixtures": {
+      "path": "tests/fixtures",
+      "purpose": "Test fixtures",
+      "fileCount": 1,
+      "lastAccessed": 1774795189618,
+      "keyFiles": [
+        "contatos_e2e.csv"
+      ]
+    },
+    "wa-bridge/lib": {
+      "path": "wa-bridge/lib",
+      "purpose": "Library code",
+      "fileCount": 2,
+      "lastAccessed": 1774795189618,
+      "keyFiles": [
+        "process-guard.js",
+        "recipient-resolver.js"
+      ]
+    },
+    "wa-bridge/node_modules": {
+      "path": "wa-bridge/node_modules",
+      "purpose": "Dependencies",
+      "fileCount": 1,
+      "lastAccessed": 1774795189618,
+      "keyFiles": []
+    },
+    "wa-bridge/tests": {
+      "path": "wa-bridge/tests",
+      "purpose": "Test files",
+      "fileCount": 2,
+      "lastAccessed": 1774795189619,
+      "keyFiles": [
+        "process-guard.test.js",
+        "recipient-resolver.test.js"
+      ]
+    }
+  },
+  "hotPaths": [],
+  "userDirectives": []
+}
