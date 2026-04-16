@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+from contextlib import asynccontextmanager
 from typing import Callable, Optional
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -14,7 +16,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
-from models import Campaign, Contact, SendLog
+from models import AgentSpreadsheetUpload, Campaign, Contact, SendLog
 from schemas import CampaignCreate, TemplateUpdate
 from services.campaign_service import (
     add_manual_contact,
@@ -39,6 +41,27 @@ from services.campaign_service import (
     update_template,
     upload_contacts,
 )
+from services.app_settings import (
+    available_inbound_ai_models,
+    ensure_app_settings_table,
+    get_inbound_ai_model,
+    is_inbound_ai_enabled,
+    set_inbound_ai_enabled,
+    set_inbound_ai_model,
+)
+from services.ai_agent import AIAgent, AIAction
+from services.agent_settings_service import (
+    ensure_agent_settings_schema,
+    get_agent_settings,
+    get_agent_settings_payload,
+    save_agent_settings_tab,
+)
+from services.handoff_service import perform_handoff
+from services.inbound_ai_service import InboundAIService
+from services.knowledge_service import KnowledgeService
+from services.openrouter_client import OpenRouterClient
+from services.conversation_service import close_conversation, reopen_ai, save_inbound_message
+from services.inbound_engine import InboundEngine
 from services.send_engine import SendEngine
 from services.whatsapp import WhatsAppClient, WhatsAppError
 from utils.config import load_app_env
@@ -48,11 +71,30 @@ load_app_env()
 
 APP_PASSWORD = os.getenv('APP_ADMIN_PASSWORD', 'admin123')
 SESSION_COOKIE = 'mass_sender_admin'
+INBOUND_WEBHOOK_TOKEN = os.getenv('INBOUND_WEBHOOK_TOKEN', '')
 
+engine_worker = SendEngine()
+inbound_engine = InboundEngine()
+knowledge_service = KnowledgeService()
+inbound_ai_service = InboundAIService(knowledge_service=knowledge_service)
 app = FastAPI(title='WhatsApp Campaign Sender MVP')
 app.mount('/static', StaticFiles(directory='static'), name='static')
 templates = Jinja2Templates(directory='templates')
-engine_worker = SendEngine()
+
+
+def _handoff_preview_text(db: Session, reply_text: str, action: AIAction) -> str:
+    if reply_text:
+        return reply_text
+    if action != AIAction.HANDOFF:
+        return ''
+    try:
+        settings = get_agent_settings(db)
+        configured = str(settings.handoff_message or '').strip()
+        if configured:
+            return configured
+    except Exception:
+        pass
+    return 'Vou passar seu atendimento para meu gerente.'
 
 
 def start_engine_worker_task() -> asyncio.Task:
@@ -149,6 +191,23 @@ def ensure_campaign_operational_columns(target_engine: Engine) -> None:
             conn.execute(text("UPDATE contacts SET source = COALESCE(source, 'csv')"))
 
 
+def ensure_inbound_columns_and_indexes(target_engine: Engine) -> None:
+    expected_tables = {'conversations', 'conversation_messages', 'handoff_events'}
+    with target_engine.begin() as conn:
+        existing_tables = {
+            row[0]
+            for row in conn.execute(text("SELECT name FROM sqlite_master WHERE type='table'")).fetchall()
+        }
+        missing_tables = expected_tables - existing_tables
+        if missing_tables:
+            Base.metadata.create_all(bind=target_engine)
+        conversation_rows = conn.execute(text("PRAGMA table_info('conversations')")).fetchall()
+        if conversation_rows:
+            conversation_columns = {row[1] for row in conversation_rows}
+            if 'last_processed_wa_message_id' not in conversation_columns:
+                conn.execute(text("ALTER TABLE conversations ADD COLUMN last_processed_wa_message_id VARCHAR(120)"))
+
+
 def require_auth(request: Request):
     if request.url.path.startswith('/login') or request.url.path.startswith('/health'):
         return
@@ -160,6 +219,13 @@ def require_auth(request: Request):
 def _expects_html_navigation(request: Request) -> bool:
     accept = (request.headers.get('accept') or '').lower()
     return request.method.upper() == 'GET' and 'text/html' in accept
+
+
+def require_inbound_token(request: Request) -> None:
+    expected = str(INBOUND_WEBHOOK_TOKEN or '').strip()
+    provided = str(request.headers.get('x-inbound-token') or '').strip()
+    if not expected or provided != expected:
+        raise HTTPException(status_code=401, detail='Token inbound inválido')
 
 
 @app.exception_handler(HTTPException)
@@ -234,17 +300,20 @@ async def resolve_test_run_destination(client: WhatsAppClient) -> tuple[Optional
     return phone, 'amostras enviadas para o numero conectado no Painel WhatsApp'
 
 
-@app.on_event('startup')
-async def startup_event() -> None:
+async def _startup() -> None:
     Base.metadata.create_all(bind=engine)
     ensure_campaign_operational_columns(engine)
+    ensure_inbound_columns_and_indexes(engine)
+    ensure_app_settings_table(engine)
+    ensure_agent_settings_schema(engine)
+    await inbound_engine.start()
     app.state.worker_task = start_engine_worker_task()
     app.state.supervisor_task = asyncio.create_task(supervise_operational_services())
 
 
-@app.on_event('shutdown')
-async def shutdown_event() -> None:
+async def _shutdown() -> None:
     await engine_worker.stop()
+    await inbound_engine.stop()
     task = getattr(app.state, 'worker_task', None)
     if task:
         task.cancel()
@@ -259,6 +328,18 @@ async def shutdown_event() -> None:
             await supervisor_task
         except asyncio.CancelledError:
             pass
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await _startup()
+    try:
+        yield
+    finally:
+        await _shutdown()
+
+
+app.router.lifespan_context = lifespan
 
 
 @app.get('/health')
@@ -288,6 +369,114 @@ async def bridge_session() -> JSONResponse:
         return JSONResponse({'ok': True, 'session': payload})
     except WhatsAppError as exc:
         return bridge_error_response(exc, 'session')
+
+
+@app.get('/inbound/ai-control', dependencies=[Depends(require_auth)])
+def inbound_ai_control_get(db: Session = Depends(get_db)) -> JSONResponse:
+    Base.metadata.create_all(bind=engine)
+    ensure_app_settings_table(engine)
+    ensure_agent_settings_schema(engine)
+    return JSONResponse(
+        {
+            'ok': True,
+            'enabled': is_inbound_ai_enabled(db),
+            'selected_model': get_inbound_ai_model(db),
+            'available_models': available_inbound_ai_models(),
+        }
+    )
+
+
+@app.post('/inbound/ai-control', dependencies=[Depends(require_auth)])
+async def inbound_ai_control_set(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
+    Base.metadata.create_all(bind=engine)
+    ensure_app_settings_table(engine)
+    ensure_agent_settings_schema(engine)
+    payload = await request.json()
+    enabled = bool(payload.get('enabled'))
+    set_inbound_ai_enabled(db, enabled)
+    return JSONResponse({'ok': True, 'enabled': enabled})
+
+
+@app.post('/inbound/ai-model', dependencies=[Depends(require_auth)])
+async def inbound_ai_model_set(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
+    Base.metadata.create_all(bind=engine)
+    ensure_app_settings_table(engine)
+    ensure_agent_settings_schema(engine)
+    payload = await request.json()
+    model = str(payload.get('model') or '').strip()
+    try:
+        selected = set_inbound_ai_model(db, model)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    return JSONResponse({'ok': True, 'selected_model': selected})
+
+
+@app.post('/inbound/ai-model/test', dependencies=[Depends(require_auth)])
+async def inbound_ai_model_test(request: Request, db: Session = Depends(get_db)) -> JSONResponse:
+    payload = await request.json()
+    model = str(payload.get('model') or '').strip()
+    prompt = str(payload.get('prompt') or '').strip()
+
+    if not model:
+        return JSONResponse({'ok': False, 'message': 'Modelo é obrigatório.'}, status_code=400)
+    if not prompt:
+        return JSONResponse({'ok': False, 'message': 'Mensagem de teste é obrigatória.'}, status_code=400)
+
+    allowed_models = available_inbound_ai_models()
+    if allowed_models and model.lower() not in {item.lower() for item in allowed_models}:
+        return JSONResponse({'ok': False, 'message': 'Modelo não permitido pela configuração.'}, status_code=400)
+
+    try:
+        agent = AIAgent()
+        decision = await agent.preview_decision(
+            inbound_text=prompt,
+            conversation_history=[{'role': 'assistant', 'text': 'preview-bootstrap'}],
+            model=model,
+        )
+    except Exception as exc:
+        try:
+            agent = AIAgent()
+            raw_text = await OpenRouterClient().complete_text(
+                messages=agent._build_messages(prompt, []),
+                system_prompt=agent._system_prompt(),
+                model_override=model,
+            )
+            return JSONResponse(
+                {
+                    'ok': True,
+                    'model': model,
+                    'action': 'raw_text',
+                    'preview_text': raw_text,
+                    'handoff_reason': '',
+                    'confidence': 0.0,
+                    'source': 'none',
+                    'matched_product': None,
+                    'elapsed_ms': 0,
+                    'warning': f'Preview exibido em modo texto bruto porque o modelo nao retornou JSON valido: {str(exc)[:200]}',
+                }
+            )
+        except Exception as raw_exc:
+            return JSONResponse(
+                {
+                    'ok': False,
+                    'message': f'Falha ao testar modelo: {str(exc)[:180]} | fallback bruto: {str(raw_exc)[:180]}',
+                },
+                status_code=502,
+            )
+    preview_text = _handoff_preview_text(db, decision.reply_text, decision.action)
+    return JSONResponse(
+        {
+            'ok': True,
+            'model': model,
+            'action': decision.action.value,
+            'preview_text': preview_text,
+            'handoff_reason': decision.handoff_reason,
+            'confidence': decision.confidence,
+            'source': 'none',
+            'matched_product': None,
+            'elapsed_ms': 0,
+        }
+    )
 
 
 @app.get('/bridge/qr', dependencies=[Depends(require_auth)])
@@ -351,16 +540,303 @@ def logout():
     return response
 
 
+@app.post('/webhooks/whatsapp/inbound')
+async def inbound_webhook(request: Request, db: Session = Depends(get_db)):
+    require_inbound_token(request)
+    Base.metadata.create_all(bind=engine)
+    ensure_inbound_columns_and_indexes(engine)
+    ensure_app_settings_table(engine)
+    payload = await request.json()
+
+    if bool(payload.get('from_me')):
+        return JSONResponse({'ok': True, 'accepted': False, 'duplicate': False})
+
+    wa_message_id = str(payload.get('wa_message_id') or '').strip()
+    from_phone = str(payload.get('from_phone') or '').strip()
+    text_value = str(payload.get('text') or '').strip()
+    raw_excerpt = str(payload.get('raw_excerpt') or '').strip()
+    push_name = str(payload.get('push_name') or '').strip()
+
+    if not wa_message_id or not from_phone or not text_value:
+        raise HTTPException(status_code=400, detail='Payload inbound inválido')
+
+    conversation, duplicate = save_inbound_message(
+        db,
+        wa_message_id=wa_message_id,
+        from_phone=from_phone,
+        text=text_value,
+        raw_payload_excerpt=raw_excerpt,
+        push_name=push_name or None,
+    )
+
+    ai_enabled = is_inbound_ai_enabled(db)
+    if not duplicate and ai_enabled:
+        await inbound_engine.enqueue_conversation(conversation.id)
+
+    return JSONResponse({'ok': True, 'accepted': True, 'duplicate': duplicate})
+
+
 @app.get('/', response_class=HTMLResponse, dependencies=[Depends(require_auth)])
 def index(request: Request, db: Session = Depends(get_db)):
     campaigns = db.scalars(select(Campaign).order_by(Campaign.created_at.desc())).all()
     return templates.TemplateResponse('index.html', {'request': request, 'campaigns': campaigns})
 
 
+@app.get('/agent-settings', response_class=HTMLResponse, dependencies=[Depends(require_auth)])
+def agent_settings_page(request: Request):
+    return templates.TemplateResponse('agent_settings.html', {'request': request})
+
+
+@app.get('/agent-settings/config', dependencies=[Depends(require_auth)])
+def agent_settings_config_route(db: Session = Depends(get_db)):
+    Base.metadata.create_all(bind=engine)
+    ensure_agent_settings_schema(engine)
+    payload = get_agent_settings_payload(db)
+    payload['spreadsheet'] = {
+        'active_upload': knowledge_service.active_spreadsheet_payload(db),
+        'latest_upload': knowledge_service.latest_spreadsheet_payload(db),
+    }
+    return JSONResponse({'ok': True, **payload})
+
+
+@app.post('/agent-settings/config/{tab}', dependencies=[Depends(require_auth)])
+async def agent_settings_tab_save_route(tab: str, request: Request, db: Session = Depends(get_db)):
+    Base.metadata.create_all(bind=engine)
+    ensure_agent_settings_schema(engine)
+    payload = await request.json()
+    try:
+        data = save_agent_settings_tab(db, tab, payload)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    return JSONResponse({'ok': True, **data})
+
+
+@app.post('/agent-settings/config', dependencies=[Depends(require_auth)])
+async def agent_settings_full_save_route(request: Request, db: Session = Depends(get_db)):
+    Base.metadata.create_all(bind=engine)
+    ensure_agent_settings_schema(engine)
+    payload = await request.json()
+    current = get_agent_settings_payload(db)
+    merged = {**current, **payload}
+    for tab in ('inbound', 'personality', 'behavior', 'handoff', 'manual', 'database', 'priority'):
+        if tab in merged:
+            save_agent_settings_tab(db, tab, merged[tab])
+    return JSONResponse({'ok': True, **get_agent_settings_payload(db)})
+
+
+@app.post('/agent-settings/spreadsheet/upload', dependencies=[Depends(require_auth)])
+async def agent_settings_spreadsheet_upload_route(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    payload = await file.read()
+    try:
+        preview = knowledge_service.validate_upload_bytes(file.filename or 'upload.csv', payload)
+        stored = knowledge_service.persist_upload_file(file.filename or 'upload.csv', payload)
+        upload = knowledge_service.register_spreadsheet_upload(
+            db,
+            file_name=file.filename or stored.name,
+            stored_path=str(stored),
+            file_size_bytes=len(payload),
+            columns=preview['columns'],
+            preview_rows=preview['preview_rows'],
+            mapping=preview.get('mapping') or {},
+            activate=False,
+        )
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    except Exception:
+        return JSONResponse({'ok': False, 'message': 'Não foi possível processar a planilha enviada.'}, status_code=500)
+
+    return JSONResponse({'ok': True, 'upload': knowledge_service.latest_spreadsheet_payload(db, upload.id)})
+
+
+@app.post('/agent-settings/spreadsheet/activate', dependencies=[Depends(require_auth)])
+async def agent_settings_spreadsheet_activate_route(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    upload_id = int(payload.get('upload_id') or 0)
+    mapping = payload.get('mapping') or {}
+    try:
+        upload = knowledge_service.activate_upload(db, upload_id, mapping)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=400)
+    return JSONResponse({'ok': True, 'upload': upload})
+
+
+@app.post('/agent-settings/spreadsheet/delete', dependencies=[Depends(require_auth)])
+async def agent_settings_spreadsheet_delete_route(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    upload_id = int(payload.get('upload_id') or 0)
+    try:
+        result = knowledge_service.delete_upload(db, upload_id)
+    except ValueError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=404)
+    return JSONResponse({'ok': True, **result})
+
+
+@app.get('/agent-settings/spreadsheet/preview', dependencies=[Depends(require_auth)])
+def agent_settings_spreadsheet_preview_route(upload_id: int | None = Query(None), db: Session = Depends(get_db)):
+    upload = knowledge_service.latest_spreadsheet_payload(db, upload_id)
+    if upload is None:
+        return JSONResponse({'ok': False, 'message': 'Nenhuma planilha encontrada.'}, status_code=404)
+    return JSONResponse({'ok': True, 'upload': upload})
+
+
+@app.post('/agent-settings/database/test', dependencies=[Depends(require_auth)])
+async def agent_settings_database_test_route(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    save_agent_settings_tab(db, 'database', payload)
+    result = knowledge_service.test_database_connection(get_agent_settings(db))
+    return JSONResponse(result, status_code=200 if result.get('ok') else 400)
+
+
+@app.post('/agent-settings/test', dependencies=[Depends(require_auth)])
+async def agent_settings_test_route(request: Request, db: Session = Depends(get_db)):
+    payload = await request.json()
+    customer_message = str(payload.get('customer_message') or '').strip()
+    model = str(payload.get('model') or '').strip() or None
+    raw_history = payload.get('conversation_history') or []
+    try:
+        ai_consecutive_replies = max(0, int(payload.get('ai_consecutive_replies') or 0))
+    except (TypeError, ValueError):
+        ai_consecutive_replies = 0
+    if not customer_message:
+        return JSONResponse({'ok': False, 'message': 'Mensagem do cliente é obrigatória.'}, status_code=400)
+
+    conversation_history: list[dict] = []
+    if isinstance(raw_history, list):
+        for item in raw_history[-20:]:
+            if not isinstance(item, dict):
+                continue
+            role = 'assistant' if str(item.get('role') or '').strip() == 'assistant' else 'user'
+            text_value = str(item.get('text') or '').strip()
+            if text_value:
+                conversation_history.append({'role': role, 'text': text_value[:2000]})
+
+    simulation = await inbound_ai_service.simulate(
+        db,
+        customer_message=customer_message,
+        conversation_history=conversation_history,
+        ai_consecutive_replies=ai_consecutive_replies,
+        model_override=model,
+    )
+    preview_text = _handoff_preview_text(db, simulation.decision.reply_text, simulation.decision.action)
+    return JSONResponse(
+        {
+            'ok': True,
+            'action': simulation.decision.action.value,
+            'confidence': simulation.decision.confidence,
+            'preview_text': preview_text,
+            'handoff_reason': simulation.decision.handoff_reason,
+            'source': simulation.source,
+            'matched_product': simulation.matched_product,
+            'elapsed_ms': simulation.elapsed_ms,
+        }
+    )
+
+
+@app.get('/conversations', dependencies=[Depends(require_auth)])
+def conversations_route(db: Session = Depends(get_db)):
+    Base.metadata.create_all(bind=engine)
+    ensure_inbound_columns_and_indexes(engine)
+    rows = db.execute(
+        text(
+            '''
+            SELECT id, customer_phone, status, last_message_at, ai_consecutive_replies, handoff_target_phone
+            FROM conversations
+            ORDER BY COALESCE(last_message_at, created_at) DESC, id DESC
+            '''
+        )
+    ).fetchall()
+    return JSONResponse(
+        {
+            'items': [
+                {
+                    'id': row[0],
+                    'customer_phone': row[1],
+                    'status': row[2],
+                    'last_message_at': row[3],
+                    'ai_consecutive_replies': row[4],
+                    'handoff_target_phone': row[5],
+                }
+                for row in rows
+            ]
+        }
+    )
+
+
+@app.get('/conversations/{conversation_id}', dependencies=[Depends(require_auth)])
+def conversation_detail_route(conversation_id: int, db: Session = Depends(get_db)):
+    Base.metadata.create_all(bind=engine)
+    ensure_inbound_columns_and_indexes(engine)
+    conversation = db.execute(
+        text(
+            '''
+            SELECT id, customer_phone, status, last_message_at, ai_consecutive_replies, handoff_target_phone
+            FROM conversations
+            WHERE id = :conversation_id
+            '''
+        ),
+        {'conversation_id': conversation_id},
+    ).fetchone()
+    if conversation is None:
+        raise HTTPException(status_code=404, detail='Conversa não encontrada')
+
+    messages = db.execute(
+        text(
+            '''
+            SELECT direction, sender_type, message_text, created_at
+            FROM conversation_messages
+            WHERE conversation_id = :conversation_id
+            ORDER BY created_at ASC, id ASC
+            '''
+        ),
+        {'conversation_id': conversation_id},
+    ).fetchall()
+    return JSONResponse(
+        {
+            'item': {
+                'id': conversation[0],
+                'customer_phone': conversation[1],
+                'status': conversation[2],
+                'last_message_at': conversation[3],
+                'ai_consecutive_replies': conversation[4],
+                'handoff_target_phone': conversation[5],
+            },
+            'messages': [
+                {
+                    'direction': row[0],
+                    'sender_type': row[1],
+                    'message_text': row[2],
+                    'created_at': row[3],
+                }
+                for row in messages
+            ],
+        }
+    )
+
+
 @app.post('/campaigns', dependencies=[Depends(require_auth)])
 def create_campaign_route(name: str = Form(...), db: Session = Depends(get_db)):
     item = create_campaign(db, name=name)
     return RedirectResponse(f'/campaigns/{item.id}', status_code=303)
+
+
+@app.post('/conversations/{conversation_id}/handoff', dependencies=[Depends(require_auth)])
+async def conversation_handoff_route(conversation_id: int, request: Request, db: Session = Depends(get_db)):
+    payload = await request.json() if request.headers.get('content-type', '').startswith('application/json') else {}
+    reason = str(payload.get('reason') or 'manual_handoff').strip() or 'manual_handoff'
+    await perform_handoff(db, conversation_id, reason, WhatsAppClient())
+    return JSONResponse({'ok': True, 'message': 'Conversa encaminhada para humano.'})
+
+
+@app.post('/conversations/{conversation_id}/close', dependencies=[Depends(require_auth)])
+def conversation_close_route(conversation_id: int, db: Session = Depends(get_db)):
+    close_conversation(db, conversation_id)
+    return JSONResponse({'ok': True, 'message': 'Conversa encerrada.'})
+
+
+@app.post('/conversations/{conversation_id}/reopen-ai', dependencies=[Depends(require_auth)])
+def conversation_reopen_route(conversation_id: int, db: Session = Depends(get_db)):
+    reopen_ai(db, conversation_id)
+    return JSONResponse({'ok': True, 'message': 'Conversa reaberta para IA.'})
 
 
 @app.post('/campaigns/{campaign_id}/delete', dependencies=[Depends(require_auth)])

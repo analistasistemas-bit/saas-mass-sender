@@ -4,8 +4,13 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const QRCode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const { isBrowserAlreadyRunningError, releaseSessionBrowserLock } = require('./lib/process-guard');
+const { loadEnvFile } = require('./lib/env-loader');
+const { isBrowserAlreadyRunningError, extractProfileOwnerPid, releaseSessionBrowserLock } = require('./lib/process-guard');
+const { shouldForwardInboundMessage, buildInboundPayload, publishInboundWebhook } = require('./lib/inbound-webhook');
 const { resolveChatIdForPhone } = require('./lib/recipient-resolver');
+
+loadEnvFile(path.resolve(__dirname, '.env'));
+loadEnvFile(path.resolve(__dirname, '../.env'));
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -30,6 +35,8 @@ const dataPath = path.resolve(process.env.WA_DATA_PATH || '.wwebjs_auth');
 const userDataDir = path.resolve(dataPath, `session-${sessionName}`);
 const headless = process.env.WA_HEADLESS !== 'false';
 const executablePath = process.env.WA_EXECUTABLE_PATH || '';
+const inboundWebhookUrl = process.env.BACKEND_INBOUND_WEBHOOK_URL || '';
+const inboundWebhookToken = process.env.BACKEND_INBOUND_WEBHOOK_TOKEN || '';
 
 const state = {
   connected: false,
@@ -143,6 +150,30 @@ async function buildClient(options = {}) {
     track('loading_screen', { percent, message });
   });
 
+  client.on('message', async (message) => {
+    if (!shouldForwardInboundMessage(message)) {
+      return;
+    }
+
+    const payload = buildInboundPayload(message);
+    try {
+      const result = await publishInboundWebhook(payload, {
+        backendUrl: inboundWebhookUrl,
+        token: inboundWebhookToken,
+      });
+      track('inbound_webhook_sent', {
+        wa_message_id: payload.wa_message_id,
+        status: result.status || 0,
+        ok: result.ok,
+      });
+    } catch (error) {
+      track('inbound_webhook_failed', {
+        wa_message_id: payload.wa_message_id,
+        message: String(error && error.message ? error.message : error).slice(0, 200),
+      });
+    }
+  });
+
   try {
     await client.initialize();
     track('initialized');
@@ -153,7 +184,8 @@ async function buildClient(options = {}) {
 
     if (!options.recovered && isBrowserAlreadyRunningError(error)) {
       track('stale_browser_detected', { userDataDir });
-      const recovery = await releaseSessionBrowserLock(userDataDir);
+      const errorPid = extractProfileOwnerPid(error);
+      const recovery = await releaseSessionBrowserLock(userDataDir, { errorPid });
       track('stale_browser_cleanup', recovery);
       if (recovery.remaining.length === 0) {
         track('retry_after_cleanup');

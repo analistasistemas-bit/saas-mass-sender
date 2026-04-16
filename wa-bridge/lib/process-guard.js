@@ -7,7 +7,18 @@ const execFileAsync = promisify(execFile);
 
 function isBrowserAlreadyRunningError(error) {
   const message = String(error && error.message ? error.message : error || '');
-  return message.includes('The browser is already running for');
+  return (
+    message.includes('The browser is already running for')
+    || message.includes('The profile appears to be in use by another Chromium process')
+  );
+}
+
+function extractProfileOwnerPid(error) {
+  const message = String(error && error.message ? error.message : error || '');
+  const match = message.match(/another Chromium process\s+\((\d+)\)/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isInteger(value) ? value : null;
 }
 
 function parsePgrepOutput(output, userDataDir) {
@@ -69,7 +80,9 @@ async function sleep(ms) {
 
 async function releaseSessionBrowserLock(userDataDir, options = {}) {
   const runner = options.runner || execFileAsync;
-  const pids = await findSessionChromePids(userDataDir, runner);
+  const fallbackPid = Number.isInteger(options.errorPid) ? options.errorPid : null;
+  const discoveredPids = await findSessionChromePids(userDataDir, runner);
+  const pids = Array.from(new Set([...(fallbackPid ? [fallbackPid] : []), ...discoveredPids]));
   const removedLockFiles = clearChromiumLockFiles(userDataDir);
   if (pids.length === 0) {
     return { killed: [], remaining: [], removedLockFiles };
@@ -98,10 +111,9 @@ function clearChromiumLockFiles(userDataDir) {
   for (const name of lockFiles) {
     const target = path.join(userDataDir, name);
     try {
-      if (fs.existsSync(target)) {
-        fs.rmSync(target, { force: true });
-        removed.push(name);
-      }
+      fs.lstatSync(target);
+      fs.rmSync(target, { force: true });
+      removed.push(name);
     } catch (_error) {
       // best effort cleanup
     }
@@ -111,6 +123,7 @@ function clearChromiumLockFiles(userDataDir) {
 
 module.exports = {
   isBrowserAlreadyRunningError,
+  extractProfileOwnerPid,
   parsePgrepOutput,
   findSessionChromePids,
   releaseSessionBrowserLock,

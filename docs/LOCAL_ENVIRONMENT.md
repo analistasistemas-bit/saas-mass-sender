@@ -2,12 +2,41 @@
 
 Este documento descreve como gerenciar o ambiente de desenvolvimento e testes isolado utilizando Docker. Este ambiente replica a infraestrutura da VPS em sua máquina local para validação de funcionalidades.
 
-> **IMPORTANTE:** Toda a operação deste ambiente ocorre dentro do diretório do worktree dedicado:
-> `cd .worktrees/local-testing`
+Este guia cobre apenas o modo Docker.
+Se você quiser rodar a aplicação localmente fora de containers com `uvicorn` e `npm start`, use [OPERATIONS.md](/Users/diego/Desktop/IA/mass-sender-saas-vps/docs/OPERATIONS.md).
+
+Mesmo neste modo Docker, os testes backend executados no host com `.venv` agora assumem Python 3.11, em linha com o `Dockerfile`.
+
+> **IMPORTANTE:** Execute os comandos a partir da raiz do repositório que contém o `docker-compose.yml`.
+> O worktree `.worktrees/local-testing` só deve ser usado se ele realmente existir na sua máquina.
 
 ---
 
 ## 1. Comandos de Inicialização
+
+### Modo deste documento
+Neste arquivo, sempre que falarmos em "subir o ambiente", estamos falando de:
+
+- `app` em container Docker
+- `wa-bridge` em container Docker
+- volumes Docker para banco local e sessão WhatsApp
+
+Nao use este guia para misturar `docker compose` com `uvicorn`/`npm start` no host.
+Se a intenção for debug local sem Docker, siga o outro documento.
+
+### Pré-requisito para testes no host
+Se você quiser rodar `pytest` localmente fora do container, use:
+
+- Python 3.11
+- virtualenv em `.venv`
+
+Comandos recomendados:
+```bash
+/opt/homebrew/bin/python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
 
 ### Iniciar Tudo (Background)
 Sobe os containers da aplicação FastAPI e do motor do WhatsApp (wa-bridge) de uma só vez.
@@ -77,6 +106,31 @@ Após iniciar os serviços com sucesso, utilize as URLs abaixo:
 
 **Credenciais Padrão (Ambiente Local):**
 *   **Senha do Administrador:** `admin123` (Conforme configurado em `.env`)
+
+## 4.1 Configuração do Inbound com IA
+
+Para ativar o atendimento inbound com IA na v1, configure no `.env`:
+
+```env
+INBOUND_WEBHOOK_TOKEN=troque-este-token
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=openai/gpt-4.1-mini
+HUMAN_HANDOFF_PHONE=+5581888888888
+```
+
+E no ambiente do `wa-bridge`:
+
+```env
+BACKEND_INBOUND_WEBHOOK_URL=http://app:8000/webhooks/whatsapp/inbound
+BACKEND_INBOUND_WEBHOOK_TOKEN=troque-este-token
+```
+
+Observações:
+- o número conectado no `wa-bridge` passa a receber e encaminhar mensagens inbound
+- a IA responde apenas enquanto a conversa estiver em `ai_active`
+- após handoff, a conversa entra em `waiting_human` e a IA para de responder
+- o `wa-bridge` agora também lê `wa-bridge/.env` e `../.env`, então o `.env` da raiz já pode ser usado no ambiente local
+- no modo Docker, essas variáveis precisam estar disponíveis para os containers via `.env` e `docker compose`
 
 ---
 

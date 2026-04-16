@@ -137,6 +137,19 @@
               <button type="button" id="bridge-restart" class="danger-button">Trocar numero</button>
             </div>
 
+            <div class="rounded-lg border border-line bg-gray-50 p-4">
+              <div class="flex items-center justify-between gap-3">
+                <div>
+                  <p class="text-xs font-medium text-muted">Agent Settings</p>
+                  <p class="mt-1 text-sm font-semibold text-ink">Controle central do agente comercial, fontes e simulador.</p>
+                </div>
+                <a href="/agent-settings" class="primary-button">Abrir configurações</a>
+              </div>
+              <p class="mt-3 text-sm text-muted">
+                O inbound continua sendo acompanhado nas conversas abaixo, mas a configuração da IA agora fica centralizada na nova página de controle.
+              </p>
+            </div>
+
             <div id="qr-wrap" class="hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
               <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <img id="qr-image" alt="QR Code WhatsApp" class="qr-image hidden" />
@@ -256,6 +269,64 @@
           <p class="mx-auto mt-2 max-w-lg text-sm text-muted">
             O painel vai guiar a conexao, validacao, teste e envio de forma estruturada.
           </p>
+        </div>
+      </section>
+
+      <section class="space-y-4">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="text-xs font-medium text-muted">Atendimento inbound</p>
+            <h2 class="mt-1 text-lg font-semibold text-ink">Conversas recentes</h2>
+          </div>
+          <p class="text-sm text-muted">Acompanhe o estado da IA e faça handoff manual quando necessário.</p>
+        </div>
+
+        <div class="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
+          <article class="rounded-xl border border-line bg-white p-5">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-xs font-medium text-muted">Fila operacional</p>
+                <h3 class="mt-1 text-base font-semibold text-ink">Conversas abertas</h3>
+              </div>
+              <button type="button" id="conversations-refresh" class="secondary-button">Atualizar</button>
+            </div>
+
+            <div id="conversations-list" class="mt-4 space-y-3"></div>
+            <div id="conversations-empty-state" class="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+              <p class="text-xs font-medium text-muted">Sem conversas recentes</p>
+              <p class="mt-2 text-sm text-muted">Quando clientes responderem ao número conectado, elas aparecerão aqui.</p>
+            </div>
+          </article>
+
+          <article class="rounded-xl border border-line bg-white p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs font-medium text-muted">Detalhe</p>
+                <h3 class="mt-1 text-base font-semibold text-ink">Conversa selecionada</h3>
+              </div>
+              <span id="conversation-detail-badge" class="status-badge status-badge--info">Aguardando</span>
+            </div>
+
+            <div id="conversation-detail-empty" class="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+              <p class="text-sm text-muted">Selecione uma conversa para ver o histórico e acionar controles manuais.</p>
+            </div>
+
+            <div id="conversation-detail-panel" class="hidden">
+              <div class="mt-4 rounded-lg border border-line bg-gray-50 p-4">
+                <p class="text-xs font-medium text-muted">Cliente</p>
+                <p id="conversation-detail-phone" class="mt-1 text-sm font-semibold text-ink"></p>
+                <p id="conversation-detail-meta" class="mt-2 text-xs text-muted"></p>
+              </div>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                <button type="button" id="conversation-action-handoff" class="danger-button">Fazer handoff</button>
+                <button type="button" id="conversation-action-close" class="secondary-button">Fechar conversa</button>
+                <button type="button" id="conversation-action-reopen" class="primary-button">Reativar IA</button>
+              </div>
+
+              <div id="conversation-history" class="conversation-history-scroll mt-4 space-y-3"></div>
+            </div>
+          </article>
         </div>
       </section>
     </main>

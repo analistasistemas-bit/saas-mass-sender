@@ -11,6 +11,9 @@ Ele cobre:
 - stack legada com Evolution API via Docker
 - comandos de diagnóstico e manutenção
 
+Este documento é a referência para execução local fora do Docker.
+Se a intenção for usar o ambiente isolado por containers com `docker compose up -d`, use [LOCAL_ENVIRONMENT.md](/Users/diego/Desktop/IA/mass-sender-saas-vps/docs/LOCAL_ENVIRONMENT.md).
+
 Para o uso do aplicativo no dia a dia, consulte:
 
 - [USER_GUIDE.md](/Users/mac/Desktop/IA/mass-sender/docs/USER_GUIDE.md)
@@ -29,7 +32,24 @@ Fluxo principal em produção local:
 
 ```text
 Frontend futuro -> FastAPI -> wa-bridge -> WhatsApp Web
+Inbound WhatsApp -> wa-bridge -> webhook FastAPI -> IA/handoff
 ```
+
+## Modos de Execução
+
+Existem dois modos suportados e eles nao devem ser misturados:
+
+1. Docker local
+- sobe `app` e `wa-bridge` em containers
+- comando principal: `docker compose up -d`
+- documentação: [LOCAL_ENVIRONMENT.md](/Users/diego/Desktop/IA/mass-sender-saas-vps/docs/LOCAL_ENVIRONMENT.md)
+
+2. Local sem Docker
+- sobe `FastAPI` com `uvicorn`
+- sobe `wa-bridge` com `npm start`
+- documentação: este arquivo
+
+Quando este arquivo usar comandos como `uvicorn main:app --reload` e `npm start`, ele está descrevendo apenas o modo local sem Docker.
 
 ## Endpoints Principais
 
@@ -64,8 +84,9 @@ Quando usar: acessar a interface para operar campanhas manualmente.
 
 ### Python
 
-- Python 3.9+
+- Python 3.11
 - `venv` criado em `.venv`
+- recomendacao: manter a mesma versao do `Dockerfile` para evitar divergencias entre host e container
 
 ### Node.js
 
@@ -92,6 +113,12 @@ DB_PATH=app.db
 WHATSAPP_PROVIDER=bridge
 WA_BRIDGE_BASE_URL=http://127.0.0.1:3010
 WA_BRIDGE_API_KEY=
+INBOUND_WEBHOOK_TOKEN=troque-este-token
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4.1-mini
+HUMAN_HANDOFF_PHONE=+5581888888888
+BACKEND_INBOUND_WEBHOOK_URL=http://127.0.0.1:8000/webhooks/whatsapp/inbound
+BACKEND_INBOUND_WEBHOOK_TOKEN=troque-este-token
 ```
 
 Observações:
@@ -99,23 +126,43 @@ Observações:
 - o backend agora carrega `.env` automaticamente
 - variáveis exportadas no shell continuam tendo prioridade sobre `.env`
 - `DB_PATH` controla o SQLite local
+- `INBOUND_WEBHOOK_TOKEN` e `BACKEND_INBOUND_WEBHOOK_TOKEN` devem ter o mesmo valor
+- `HUMAN_HANDOFF_PHONE` define o número global que recebe os handoffs humanos
+
+## Atendimento Inbound com IA
+
+Na v1, o atendimento inbound funciona assim:
+
+- o `wa-bridge` captura mensagens recebidas no número conectado
+- o bridge publica webhook para `POST /webhooks/whatsapp/inbound`
+- o backend aplica idempotência por `wa_message_id`
+- a IA responde enquanto a conversa estiver em `ai_active`
+- quando houver intenção de compra, pedido, desconto, baixa confiança ou 5 respostas consecutivas, o sistema envia:
+  - `Vou passar seu atendimento para meu gerente.`
+  - resumo do caso para `HUMAN_HANDOFF_PHONE`
+
+Estados da conversa:
+
+- `ai_active`
+- `waiting_human`
+- `closed`
 
 ## Instalação Inicial
 
 ### Dependências Python
 
 ```bash
-cd /Users/mac/Desktop/IA/mass-sender
-python3 -m venv .venv
+cd /Users/diego/Desktop/IA/mass-sender-saas-vps
+/opt/homebrew/bin/python3.11 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
 ### Dependências do bridge
 
 ```bash
-cd /Users/mac/Desktop/IA/mass-sender/wa-bridge
+cd /Users/diego/Desktop/IA/mass-sender-saas-vps/wa-bridge
 npm install
 ```
 
@@ -124,7 +171,7 @@ npm install
 ### 1. Subir o `wa-bridge`
 
 ```bash
-cd /Users/mac/Desktop/IA/mass-sender/wa-bridge
+cd /Users/diego/Desktop/IA/mass-sender-saas-vps/wa-bridge
 npm start
 ```
 
@@ -153,7 +200,7 @@ Se mesmo após a limpeza automática ainda houver `remaining` no log de `stale_b
 ### 2. Subir o backend FastAPI
 
 ```bash
-cd /Users/mac/Desktop/IA/mass-sender
+cd /Users/diego/Desktop/IA/mass-sender-saas-vps
 source .venv/bin/activate
 uvicorn main:app --reload
 ```

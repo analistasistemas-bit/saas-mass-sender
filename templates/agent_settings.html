@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agent Settings - Mass Sender</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:wght@600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: '#101828',
+              muted: '#667085',
+              shell: '#f6f7fb',
+              line: '#d0d5dd',
+              panel: '#ffffff',
+              command: '#102a43',
+              signal: '#0ea5e9',
+              ember: '#f97316',
+              mint: '#10b981',
+            },
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+              display: ['Fraunces', 'serif'],
+            },
+            boxShadow: {
+              command: '0 24px 80px rgba(16,42,67,0.12)',
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="min-h-screen bg-shell text-ink">
+    <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8" data-agent-settings-page="true">
+      <header class="rounded-[28px] bg-command px-6 py-6 text-white shadow-command">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="max-w-3xl">
+            <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-white/80 transition hover:text-white">
+              <span>←</span>
+              <span>Voltar para campanhas</span>
+            </a>
+            <p class="mt-5 text-xs font-semibold uppercase tracking-[0.24em] text-white/60">Centro de controle</p>
+            <h1 class="mt-2 font-display text-4xl leading-tight">Agent Settings</h1>
+            <p class="mt-3 max-w-2xl text-sm leading-6 text-white/78">
+              Configure o comportamento do agente comercial, as fontes de conhecimento e o ambiente de teste sem espalhar regras pela operação.
+            </p>
+          </div>
+          <div class="grid min-w-[18rem] gap-3 rounded-3xl border border-white/10 bg-white/6 p-4 backdrop-blur">
+            <div>
+              <p class="text-xs uppercase tracking-[0.18em] text-white/55">Status do agente</p>
+              <div class="mt-2 flex items-center gap-2">
+                <span id="agent-settings-status-badge" class="status-badge status-badge--info">Carregando</span>
+                <span id="agent-settings-status-text" class="text-sm text-white/85">Preparando configuração</span>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm">
+              <div class="rounded-2xl bg-white/8 px-3 py-3">
+                <p class="text-xs text-white/55">Modelo principal</p>
+                <p id="agent-settings-summary-model" class="mt-1 font-medium text-white">-</p>
+              </div>
+              <div class="rounded-2xl bg-white/8 px-3 py-3">
+                <p class="text-xs text-white/55">Prioridade</p>
+                <p id="agent-settings-summary-priority" class="mt-1 font-medium text-white">-</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside class="rounded-[28px] border border-line bg-panel p-4 shadow-panel">
+          <p class="px-2 text-xs font-semibold uppercase tracking-[0.24em] text-muted">Módulos</p>
+          <nav class="mt-4 space-y-2" id="agent-settings-tabs">
+            <button type="button" class="agent-tab-button is-active" data-tab="inbound">Atendimento IA</button>
+            <button type="button" class="agent-tab-button" data-tab="personality">Personalidade</button>
+            <button type="button" class="agent-tab-button" data-tab="behavior">Comportamento</button>
+            <button type="button" class="agent-tab-button" data-tab="handoff">Handoff</button>
+            <button type="button" class="agent-tab-button" data-tab="manual">Conhecimento Manual</button>
+            <button type="button" class="agent-tab-button" data-tab="spreadsheet">Planilha</button>
+            <button type="button" class="agent-tab-button" data-tab="database">Banco de Dados</button>
+            <button type="button" class="agent-tab-button" data-tab="priority">Prioridade de Fontes</button>
+            <button type="button" class="agent-tab-button" data-tab="test">Teste do Agente</button>
+          </nav>
+        </aside>
+
+        <section class="min-w-0 space-y-6">
+          <article class="agent-panel" data-tab-panel="inbound">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 1</p>
+                <h2 class="agent-panel__title">Atendimento IA</h2>
+                <p class="agent-panel__desc">Defina se a IA responde inbound, escolha o modelo principal e teste o comportamento antes de promover para produção.</p>
+              </div>
+              <button type="button" class="secondary-button" data-save-tab="inbound">Salvar atendimento IA</button>
+            </div>
+            <div class="agent-form-grid">
+              <label class="agent-field agent-field--toggle">
+                <span class="agent-field__label">IA inbound ativa</span>
+                <input id="inbound-ai-enabled" type="checkbox" />
+              </label>
+              <label class="agent-field">
+                <span class="agent-field__label">Nome da empresa</span>
+                <input id="business-name" type="text" class="agent-input" />
+              </label>
+              <label class="agent-field">
+                <span class="agent-field__label">Modelo principal</span>
+                <select id="primary-model" class="agent-input"></select>
+              </label>
+            </div>
+
+            <div class="mt-6 grid gap-5 rounded-[24px] border border-line bg-shell p-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+              <div class="space-y-4">
+                <div>
+                  <p class="agent-panel__eyebrow">Teste rápido</p>
+                  <h3 class="text-lg font-semibold text-ink">Modelo em sandbox</h3>
+                </div>
+                <label class="agent-field">
+                  <span class="agent-field__label">Modelo para teste</span>
+                  <select id="test-model" class="agent-input"></select>
+                </label>
+                <label class="agent-field">
+                  <span class="agent-field__label">Mensagem de teste</span>
+                  <textarea id="test-prompt" rows="6" class="agent-input" placeholder="Ex.: Queria saber o preço do Tricoline Floral."></textarea>
+                </label>
+                <button type="button" id="run-inbound-test" class="primary-button">Testar modelo</button>
+              </div>
+              <div class="rounded-[22px] border border-dashed border-line bg-white p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="agent-panel__eyebrow">Resultado</p>
+                    <h3 class="text-lg font-semibold text-ink">Prévia da resposta</h3>
+                  </div>
+                  <span id="inbound-test-badge" class="status-badge status-badge--info">Aguardando</span>
+                </div>
+                <p id="inbound-test-meta" class="mt-3 text-sm text-muted">Escolha um modelo e dispare um teste para ver decisão, fonte, confiança e tempo.</p>
+                <div class="mt-4 rounded-2xl bg-shell p-4">
+                  <p id="inbound-test-response" class="whitespace-pre-wrap text-sm leading-6 text-ink">Nenhum teste executado.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="personality">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 2</p>
+                <h2 class="agent-panel__title">Personalidade</h2>
+                <p class="agent-panel__desc">Esses campos compõem o prompt dinâmico e moldam o tom do agente comercial.</p>
+              </div>
+              <button type="button" class="secondary-button" data-save-tab="personality">Salvar personalidade</button>
+            </div>
+            <div class="agent-form-grid">
+              <label class="agent-field"><span class="agent-field__label">Nome do agente</span><input id="agent-name" class="agent-input" /></label>
+              <label class="agent-field"><span class="agent-field__label">Tom</span><select id="tone" class="agent-input"><option>profissional</option><option selected>comercial</option><option>amigável</option><option>direto</option></select></label>
+              <label class="agent-field"><span class="agent-field__label">Estilo</span><select id="style" class="agent-input"><option>curto</option><option selected>equilibrado</option><option>detalhado</option></select></label>
+              <label class="agent-field"><span class="agent-field__label">Proatividade</span><select id="proactivity-level" class="agent-input"><option>baixo</option><option selected>medio</option><option>alto</option></select></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Usar emojis</span><input id="use-emojis" type="checkbox" /></label>
+              <label class="agent-field"><span class="agent-field__label">Máximo de caracteres</span><input id="max-response-length" type="number" class="agent-input" min="80" max="4000" /></label>
+              <label class="agent-field agent-field--full"><span class="agent-field__label">Instruções livres</span><textarea id="personality-instructions" rows="6" class="agent-input"></textarea></label>
+            </div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="behavior">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 3</p>
+                <h2 class="agent-panel__title">Comportamento</h2>
+                <p class="agent-panel__desc">Regras de resposta, segurança, limite de interações e delay operacional.</p>
+              </div>
+              <button type="button" class="secondary-button" data-save-tab="behavior">Salvar comportamento</button>
+            </div>
+            <div class="agent-form-grid">
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Responder preço</span><input id="can-answer-price" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Responder estoque</span><input id="can-answer-stock" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Responder descrição</span><input id="can-answer-description" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Sugerir similares</span><input id="can-suggest-similar-products" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Negociar desconto</span><input id="can-negotiate-discount" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Fechar pedido</span><input id="can-close-order" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Handoff em intenção de pedido</span><input id="handoff-on-order-intent" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Handoff em baixa confiança</span><input id="handoff-on-low-confidence" type="checkbox" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Handoff se pedirem humano</span><input id="handoff-on-human-request" type="checkbox" /></label>
+              <label class="agent-field"><span class="agent-field__label">Máx. respostas por conversa</span><input id="max-auto-replies" type="number" class="agent-input" min="1" max="20" /></label>
+              <label class="agent-field"><span class="agent-field__label">Delay mín. (ms)</span><input id="response-delay-min-ms" type="number" class="agent-input" min="0" max="60000" /></label>
+              <label class="agent-field"><span class="agent-field__label">Delay máx. (ms)</span><input id="response-delay-max-ms" type="number" class="agent-input" min="0" max="120000" /></label>
+            </div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="handoff">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 4</p>
+                <h2 class="agent-panel__title">Handoff</h2>
+                <p class="agent-panel__desc">Defina quando o agente para e como a transição para humano acontece.</p>
+              </div>
+              <button type="button" class="secondary-button" data-save-tab="handoff">Salvar handoff</button>
+            </div>
+            <div class="agent-form-grid">
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Handoff habilitado</span><input id="handoff-enabled" type="checkbox" /></label>
+              <label class="agent-field"><span class="agent-field__label">WhatsApp humano</span><input id="human-whatsapp-number" class="agent-input" /></label>
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Parar IA após handoff</span><input id="stop-ai-after-handoff" type="checkbox" /></label>
+              <label class="agent-field agent-field--full"><span class="agent-field__label">Mensagem de handoff</span><textarea id="handoff-message" rows="4" class="agent-input"></textarea></label>
+            </div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="manual">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 5</p>
+                <h2 class="agent-panel__title">Conhecimento Manual</h2>
+                <p class="agent-panel__desc">Contexto comercial, políticas, regras e diferenciais que podem guiar a IA.</p>
+              </div>
+              <button type="button" class="secondary-button" data-save-tab="manual">Salvar conhecimento</button>
+            </div>
+            <div class="agent-form-grid">
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Conhecimento manual ativo</span><input id="manual-knowledge-enabled" type="checkbox" /></label>
+              <label class="agent-field agent-field--full"><span class="agent-field__label">Texto base</span><textarea id="manual-knowledge-text" rows="10" class="agent-input"></textarea></label>
+            </div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="spreadsheet">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 6</p>
+                <h2 class="agent-panel__title">Planilha</h2>
+                <p class="agent-panel__desc">Faça upload da base, confira o preview e ative somente quando o mapeamento estiver correto.</p>
+              </div>
+            </div>
+            <div class="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+              <div class="rounded-[24px] border border-line bg-shell p-5">
+                <label class="agent-field">
+                  <span class="agent-field__label">Arquivo CSV ou XLSX</span>
+                  <input id="spreadsheet-file" type="file" class="agent-input" accept=".csv,.xlsx" />
+                </label>
+                <div class="mt-4 flex flex-wrap gap-3">
+                  <button type="button" id="spreadsheet-upload-button" class="primary-button">Enviar planilha</button>
+                  <button type="button" id="spreadsheet-delete-button" class="danger-button">Excluir planilha</button>
+                </div>
+                <p id="spreadsheet-upload-meta" class="mt-3 text-sm text-muted">Nenhum upload recente.</p>
+              </div>
+              <div class="rounded-[24px] border border-line bg-white p-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="agent-panel__eyebrow">Preview</p>
+                    <h3 class="text-lg font-semibold text-ink">Mapeamento de colunas</h3>
+                  </div>
+                  <button type="button" id="spreadsheet-activate-button" class="secondary-button">Ativar planilha</button>
+                </div>
+                <div id="spreadsheet-mapping" class="mt-4 grid gap-3 md:grid-cols-2"></div>
+                <div id="spreadsheet-preview" class="mt-5 overflow-x-auto rounded-2xl border border-line"></div>
+              </div>
+            </div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="database">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 7</p>
+                <h2 class="agent-panel__title">Banco de Dados</h2>
+                <p class="agent-panel__desc">Configure a fonte Oracle com teste seguro de conexão e sem expor a senha no frontend.</p>
+              </div>
+              <div class="flex gap-2">
+                <button type="button" class="secondary-button" data-save-tab="database">Salvar banco</button>
+                <button type="button" id="database-test-button" class="primary-button">Testar conexão</button>
+              </div>
+            </div>
+            <div class="agent-form-grid">
+              <label class="agent-field agent-field--toggle"><span class="agent-field__label">Banco ativo</span><input id="db-enabled" type="checkbox" /></label>
+              <label class="agent-field"><span class="agent-field__label">Tipo</span><select id="db-type" class="agent-input"><option value="oracle">oracle</option></select></label>
+              <label class="agent-field"><span class="agent-field__label">Host</span><input id="db-host" class="agent-input" /></label>
+              <label class="agent-field"><span class="agent-field__label">Porta</span><input id="db-port" type="number" class="agent-input" /></label>
+              <label class="agent-field"><span class="agent-field__label">Service</span><input id="db-service" class="agent-input" /></label>
+              <label class="agent-field"><span class="agent-field__label">Usuário</span><input id="db-user" class="agent-input" /></label>
+              <label class="agent-field"><span class="agent-field__label">Senha</span><input id="db-password" type="password" class="agent-input" placeholder="Mantém a atual se ficar em branco" /></label>
+              <label class="agent-field"><span class="agent-field__label">View</span><input id="db-view-name" class="agent-input" /></label>
+              <label class="agent-field"><span class="agent-field__label">Timeout (s)</span><input id="db-timeout-seconds" type="number" class="agent-input" /></label>
+            </div>
+            <p id="database-test-result" class="mt-4 text-sm text-muted">Nenhum teste de conexão executado.</p>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="priority">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 8</p>
+                <h2 class="agent-panel__title">Prioridade de Fontes</h2>
+                <p class="agent-panel__desc">Defina a ordem de consulta entre banco, planilha e manual.</p>
+              </div>
+              <button type="button" class="secondary-button" data-save-tab="priority">Salvar prioridade</button>
+            </div>
+            <div id="priority-list" class="space-y-3"></div>
+          </article>
+
+          <article class="agent-panel hidden" data-tab-panel="test">
+            <div class="agent-panel__head">
+              <div>
+                <p class="agent-panel__eyebrow">Aba 9</p>
+                <h2 class="agent-panel__title">Teste do Agente</h2>
+                <p class="agent-panel__desc">Simule o pipeline completo com as configurações ativas, sem mandar mensagens reais.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" id="agent-simulator-reset-button" class="secondary-button">Limpar contexto</button>
+                <button type="button" id="agent-simulator-button" class="primary-button">Testar agente</button>
+              </div>
+            </div>
+            <div class="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+              <div class="space-y-4">
+                <label class="agent-field">
+                  <span class="agent-field__label">Modelo opcional para simulação</span>
+                  <select id="simulator-model" class="agent-input"></select>
+                </label>
+                <label class="agent-field">
+                  <span class="agent-field__label">Mensagem do cliente</span>
+                  <textarea id="simulator-prompt" rows="8" class="agent-input" placeholder="Ex.: Quero saber se vocês têm Tricoline Floral em estoque."></textarea>
+                </label>
+                <div class="rounded-[24px] border border-line bg-white p-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div>
+                      <p class="agent-panel__eyebrow">Contexto ativo</p>
+                      <h3 class="text-base font-semibold text-ink">Conversa simulada</h3>
+                    </div>
+                    <span id="simulator-history-badge" class="status-badge status-badge--info">0 mensagens</span>
+                  </div>
+                  <p class="mt-2 text-sm text-muted">Cada teste continua de onde o anterior parou, como se fosse uma conversa real.</p>
+                  <div id="simulator-history" class="simulator-thread mt-4">
+                    <p class="text-sm text-muted">O simulador começa limpo. Cada teste adiciona a nova mensagem do cliente e a resposta gerada pela IA.</p>
+                  </div>
+                </div>
+              </div>
+              <div class="simulator-output-shell">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p class="agent-panel__eyebrow">Resposta simulada</p>
+                    <h3 class="text-lg font-semibold text-ink">Saída do pipeline</h3>
+                  </div>
+                  <span id="simulator-result-badge" class="status-badge status-badge--info">Aguardando</span>
+                </div>
+                <p id="simulator-result-meta" class="mt-3 text-sm text-muted">O simulador vai mostrar decisão, tempo, fonte e produto encontrado.</p>
+                <div class="simulator-output-card mt-4">
+                  <p id="simulator-result-text" class="whitespace-pre-wrap text-sm leading-6 text-ink">Nenhum teste executado.</p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <div id="agent-settings-toast-region" class="toast-region"></div>
+    </main>
+
+    <script src="/static/agent-settings.js"></script>
+  </body>
+</html>
