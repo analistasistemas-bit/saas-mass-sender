@@ -82,6 +82,10 @@ class Contact(Base):
 
 class SendLog(Base):
     __tablename__ = 'send_logs'
+    __table_args__ = (
+        Index('ix_send_logs_campaign_event', 'campaign_id', 'event_type'),
+        Index('ix_send_logs_campaign_created', 'campaign_id', 'created_at'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     campaign_id: Mapped[int] = mapped_column(ForeignKey('campaigns.id', ondelete='CASCADE'), nullable=False)

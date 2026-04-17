@@ -86,7 +86,22 @@ function normalizePhone(phone) {
 async function buildClient(options = {}) {
   const puppeteer = {
     headless,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-sync',
+      '--disable-translate',
+      '--metrics-recording-only',
+      '--no-first-run',
+      '--safebrowsing-disable-auto-update',
+      '--single-process',
+      '--js-flags=--max-old-space-size=256',
+    ],
   };
   if (executablePath) {
     puppeteer.executablePath = executablePath;
@@ -437,6 +452,7 @@ app.post('/messages/send-text', authMiddleware, async (req, res) => {
     const client = await getClient();
     const chatId = await resolveChatIdForPhone(client, phone);
     await client.sendMessage(chatId, text);
+    state.lastError = null; // Limpa erro se o envio funcionou
     res.json({ ok: true, chatId });
   } catch (error) {
     state.lastError = String(error && error.message ? error.message : error);

@@ -23,6 +23,7 @@ class InboundEngine:
         self._queue: deque[int] = deque()
         self._worker_task: asyncio.Task | None = None
         self._stop = False
+        self._event = asyncio.Event()
         self.agent = InboundAIService()
         self.client = WhatsAppClient()
 
@@ -45,6 +46,7 @@ class InboundEngine:
         if self._worker_task is None or self._worker_task.done():
             await self.start()
         self._queue.append(conversation_id)
+        self._event.set()
 
     async def process_conversation_now(self, conversation_id: int) -> None:
         if conversation_id in self._locks:
@@ -59,7 +61,8 @@ class InboundEngine:
         while not self._stop:
             try:
                 if not self._queue:
-                    await asyncio.sleep(0.2)
+                    await self._event.wait()
+                    self._event.clear()
                     continue
                 conversation_id = self._queue.popleft()
                 if conversation_id in self._locks:

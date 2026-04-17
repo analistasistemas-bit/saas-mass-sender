@@ -102,7 +102,12 @@ def start_engine_worker_task() -> asyncio.Task:
 
 
 async def supervise_operational_services() -> None:
+    idle_interval = 30  # segundos quando sem campanhas
+    active_interval = 5  # segundos quando com campanhas ativas
+
     while True:
+        has_active = engine_worker.has_active_campaigns()
+
         worker_task = getattr(app.state, 'worker_task', None)
         if worker_task is None:
             app.state.worker_task = start_engine_worker_task()
@@ -118,7 +123,7 @@ async def supervise_operational_services() -> None:
             app.state.worker_task = start_engine_worker_task()
             await asyncio.sleep(1)
             await engine_worker.resume_campaigns_after_worker_recovery()
-        elif engine_worker.worker_heartbeat_stale():
+        elif has_active and engine_worker.worker_heartbeat_stale():
             failure_reason = 'Motor de envio sem resposta. Recuperacao automatica iniciada.'
             await engine_worker.pause_campaigns_for_worker_recovery(failure_reason)
             worker_task.cancel()
@@ -131,7 +136,9 @@ async def supervise_operational_services() -> None:
             await engine_worker.resume_campaigns_after_worker_recovery()
 
         await engine_worker.monitor_bridge_service()
-        await asyncio.sleep(5)
+
+        interval = active_interval if has_active else idle_interval
+        await asyncio.sleep(interval)
 
 
 def ensure_campaign_operational_columns(target_engine: Engine) -> None:

@@ -9,6 +9,14 @@ import httpx
 
 
 class OpenRouterClient:
+    _shared_client: httpx.AsyncClient | None = None
+
+    @classmethod
+    def get_shared_client(cls) -> httpx.AsyncClient:
+        if cls._shared_client is None or cls._shared_client.is_closed:
+            cls._shared_client = httpx.AsyncClient()
+        return cls._shared_client
+
     def __init__(self, transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
         self.api_key = os.getenv('OPENROUTER_API_KEY', '').strip()
         self.model = os.getenv('OPENROUTER_MODEL', '').strip()
@@ -36,10 +44,15 @@ class OpenRouterClient:
             'Content-Type': 'application/json',
         }
 
-        async with httpx.AsyncClient(timeout=20, transport=self._transport) as client:
-            response = await client.post(f'{self.base_url}/chat/completions', json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
+        if self._transport:
+            async with httpx.AsyncClient(timeout=20, transport=self._transport) as temp_client:
+                response = await temp_client.post(f'{self.base_url}/chat/completions', json=payload, headers=headers)
+        else:
+            client = self.get_shared_client()
+            response = await client.post(f'{self.base_url}/chat/completions', json=payload, headers=headers, timeout=20)
+            
+        response.raise_for_status()
+        return response.json()
 
     def _extract_content(self, data: dict) -> str:
         choices = data.get('choices') or []

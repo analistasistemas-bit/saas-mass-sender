@@ -54,6 +54,14 @@ def classify_exception(exc: Exception) -> str:
 
 
 class WhatsAppClient:
+    _shared_client: httpx.AsyncClient | None = None
+
+    @classmethod
+    def get_shared_client(cls) -> httpx.AsyncClient:
+        if cls._shared_client is None or cls._shared_client.is_closed:
+            cls._shared_client = httpx.AsyncClient()
+        return cls._shared_client
+
     def __init__(self, transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
         explicit_provider = os.getenv('WHATSAPP_PROVIDER', '').strip().lower()
         bridge_base_url = os.getenv('WA_BRIDGE_BASE_URL', '').rstrip('/')
@@ -86,8 +94,7 @@ class WhatsAppClient:
             return headers
         return {'apikey': self.api_key}
 
-    def _client(self, timeout: int) -> httpx.AsyncClient:
-        return httpx.AsyncClient(timeout=timeout, transport=self._transport)
+
 
     def _send_url(self) -> str:
         if self.provider == 'bridge':
@@ -102,8 +109,12 @@ class WhatsAppClient:
 
         url = f'{self.bridge_base_url}{path}'
         try:
-            async with self._client(timeout=15) as client:
-                response = await client.request(method, url, headers=self._headers())
+            if self._transport:
+                async with httpx.AsyncClient(timeout=15, transport=self._transport) as temp_client:
+                    response = await temp_client.request(method, url, headers=self._headers())
+            else:
+                client = self.get_shared_client()
+                response = await client.request(method, url, headers=self._headers(), timeout=15)
         except Exception as exc:
             raise WhatsAppError(str(exc), error_class=classify_exception(exc)) from exc
 
@@ -127,8 +138,12 @@ class WhatsAppClient:
             payload = {'number': phone_e164, 'textMessage': {'text': text}}
 
         try:
-            async with self._client(timeout=25) as client:
-                response = await client.post(self._send_url(), json=payload, headers=self._headers())
+            if self._transport:
+                async with httpx.AsyncClient(timeout=25, transport=self._transport) as temp_client:
+                    response = await temp_client.post(self._send_url(), json=payload, headers=self._headers())
+            else:
+                client = self.get_shared_client()
+                response = await client.post(self._send_url(), json=payload, headers=self._headers(), timeout=25)
         except Exception as exc:  # network/timeouts
             raise WhatsAppError(str(exc), error_class=classify_exception(exc)) from exc
 
@@ -197,9 +212,26 @@ class WhatsAppClient:
             return False, 'Credenciais ausentes'
 
         try:
-            async with self._client(timeout=10) as client:
+            if self._transport:
+                async with httpx.AsyncClient(timeout=10, transport=self._transport) as temp_client:
+                    if self.provider == 'bridge':
+                        response = await temp_client.get(f'{self.bridge_base_url}/health', headers=self._headers())
+                        if response.status_code < 500:
+                            payload = response.json()
+                            connected = payload.get('connected')
+                            state = payload.get('state', 'unknown')
+                            if connected and is_bridge_session_error_message(payload.get('lastError')):
+                                return True, f'Bridge acessível, sessão instável ({state})'
+                            if connected:
+                                return True, f'Bridge acessível ({state})'
+                            return True, f'Bridge acessível, sessão {state}'
+                        return False, f'Bridge indisponível ({response.status_code})'
+
+                    response = await temp_client.get(self.base_url, headers=self._headers())
+            else:
+                client = self.get_shared_client()
                 if self.provider == 'bridge':
-                    response = await client.get(f'{self.bridge_base_url}/health', headers=self._headers())
+                    response = await client.get(f'{self.bridge_base_url}/health', headers=self._headers(), timeout=10)
                     if response.status_code < 500:
                         payload = response.json()
                         connected = payload.get('connected')
@@ -211,7 +243,8 @@ class WhatsAppClient:
                         return True, f'Bridge acessível, sessão {state}'
                     return False, f'Bridge indisponível ({response.status_code})'
 
-                response = await client.get(self.base_url, headers=self._headers())
+                response = await client.get(self.base_url, headers=self._headers(), timeout=10)
+                
             if response.status_code < 500:
                 return True, 'Evolution acessível'
             return False, f'Evolution indisponível ({response.status_code})'

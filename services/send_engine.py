@@ -5,7 +5,7 @@ import random
 from collections import deque
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from database import SessionLocal
 from models import Campaign, Contact
@@ -78,11 +78,24 @@ class SendEngine:
         profile['last_recovery_attempt_at'] = None
         profile['recovery_attempts'] = 0
 
+    def has_active_campaigns(self) -> bool:
+        with SessionLocal() as db:
+            count = db.scalar(
+                select(func.count(Campaign.id)).where(
+                    (Campaign.status == 'running')
+                    | ((Campaign.status == 'paused') & (Campaign.pause_reason == 'bridge_recovering'))
+                )
+            )
+            return (count or 0) > 0
+
     async def run_forever(self) -> None:
+        idle_backoff = 1.0
+        max_idle_backoff = 15.0
+        
         while not self._stop:
             self._mark_worker_heartbeat('Motor de envio operacional.')
             try:
-                await self._run_once()
+                had_work = await self._run_once()
             except Exception as exc:
                 self._set_service_status('worker', 'degraded', f'Falha interna no motor de envio: {str(exc)[:140]}')
                 self._push_alert(
@@ -91,9 +104,16 @@ class SendEngine:
                     title='Motor de envio instavel',
                     message='O motor de envio encontrou uma falha e sera reavaliado automaticamente.',
                 )
-            await asyncio.sleep(1.0)
+                had_work = False
 
-    async def _run_once(self) -> None:
+            if had_work:
+                idle_backoff = 1.0
+                await asyncio.sleep(1.0)
+            else:
+                await asyncio.sleep(idle_backoff)
+                idle_backoff = min(idle_backoff * 1.5, max_idle_backoff)
+
+    async def _run_once(self) -> bool:
         with SessionLocal() as db:
             running_campaigns = db.scalars(
                 select(Campaign).where(
@@ -106,6 +126,8 @@ class SendEngine:
         tasks = [asyncio.create_task(self._process_campaign(campaign_id)) for campaign_id in ids]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+            return True
+        return False
 
     async def _process_campaign(self, campaign_id: int) -> None:
         self._locks.add(campaign_id)
@@ -515,9 +537,10 @@ class SendEngine:
         target['checked_at'] = (checked_at or now_utc()).isoformat()
 
     def _push_alert(self, service: str, tone: str, title: str, message: str) -> None:
-        self._alert_sequence += 1
+        import hashlib
+        alert_id = hashlib.md5(f"{service}-{title}-{message}".encode()).hexdigest()
         self._latest_alert = {
-            'id': f'{service}-{self._alert_sequence}',
+            'id': alert_id,
             'service': service,
             'tone': tone,
             'title': title,

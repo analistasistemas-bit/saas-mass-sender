@@ -4,6 +4,7 @@ import csv
 import io
 import json
 import re
+import time
 from datetime import datetime, timezone
 from typing import Iterable, Optional
 
@@ -447,7 +448,7 @@ def _collect_cycle_event_times(db: Session, campaign: Campaign) -> list[datetime
             Contact.status == 'sent',
             Contact.sent_at.is_not(None),
             Contact.sent_at >= started_at,
-        )
+        ).order_by(Contact.sent_at.desc()).limit(150)
     ).all()
     failed_rows = db.scalars(
         select(Contact.last_attempt_at).where(
@@ -455,7 +456,7 @@ def _collect_cycle_event_times(db: Session, campaign: Campaign) -> list[datetime
             Contact.status == 'failed',
             Contact.last_attempt_at.is_not(None),
             Contact.last_attempt_at >= started_at,
-        )
+        ).order_by(Contact.last_attempt_at.desc()).limit(150)
     ).all()
 
     timestamps = [ensure_aware_utc(value) for value in [*sent_rows, *failed_rows]]
@@ -648,25 +649,35 @@ def upload_contacts(db: Session, campaign_id: int, payload: bytes) -> dict:
     db.flush()
 
     inserted = 0
+    pending_contacts = []
     for row in parsed.rows:
         status = 'pending' if row.valid else 'invalid'
-
-        contact = Contact(
-            campaign_id=campaign.id,
-            name=row.nome,
-            phone_raw=row.telefone,
-            phone_e164=row.phone_e164,
-            email=row.email,
-            source='csv',
-            status=status,
-            error_message=row.error,
+        pending_contacts.append(
+            Contact(
+                campaign_id=campaign.id,
+                name=row.nome,
+                phone_raw=row.telefone,
+                phone_e164=row.phone_e164,
+                email=row.email,
+                source='csv',
+                status=status,
+                error_message=row.error,
+            )
         )
-        db.add(contact)
-        try:
-            db.commit()
-            inserted += 1
-        except IntegrityError:
-            db.rollback()
+        
+    try:
+        db.add_all(pending_contacts)
+        db.commit()
+        inserted += len(pending_contacts)
+    except IntegrityError:
+        db.rollback()
+        for c in pending_contacts:
+            db.add(c)
+            try:
+                db.commit()
+                inserted += 1
+            except IntegrityError:
+                db.rollback()
 
     refresh_campaign_counters(db, campaign.id)
     if campaign.status in {'draft', 'completed', 'cancelled'} and campaign.pending_count > 0:
@@ -787,22 +798,41 @@ def delete_imported_contacts_from_campaign(db: Session, campaign_id: int) -> dic
     }
 
 
+def _count_contacts_by_status(db: Session, campaign_id: int) -> dict:
+    rows = db.execute(
+        select(Contact.status, func.count(Contact.id))
+        .where(Contact.campaign_id == campaign_id)
+        .group_by(Contact.status)
+    ).all()
+    counts = {str(status): int(count) for status, count in rows}
+    
+    invalid = counts.get('invalid', 0)
+    sent = counts.get('sent', 0)
+    failed = counts.get('failed', 0)
+    pending = counts.get('pending', 0) + counts.get('processing', 0)
+    total = sum(counts.values())
+    valid = total - invalid
+
+    return {
+        'total': total,
+        'valid': valid,
+        'invalid': invalid,
+        'sent': sent,
+        'failed': failed,
+        'pending': pending,
+    }
+
+
 def refresh_campaign_counters(db: Session, campaign_id: int) -> None:
     campaign = get_campaign_or_404(db, campaign_id)
+    counts = _count_contacts_by_status(db, campaign_id)
 
-    total = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id)) or 0
-    valid = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status != 'invalid')) or 0
-    invalid = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status == 'invalid')) or 0
-    sent = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status == 'sent')) or 0
-    failed = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status == 'failed')) or 0
-    pending = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status.in_(['pending', 'processing']))) or 0
-
-    campaign.total_contacts = int(total)
-    campaign.valid_contacts = int(valid)
-    campaign.invalid_contacts = int(invalid)
-    campaign.sent_count = int(sent)
-    campaign.failed_count = int(failed)
-    campaign.pending_count = int(pending)
+    campaign.total_contacts = counts['total']
+    campaign.valid_contacts = counts['valid']
+    campaign.invalid_contacts = counts['invalid']
+    campaign.sent_count = counts['sent']
+    campaign.failed_count = counts['failed']
+    campaign.pending_count = counts['pending']
 
     # Self-heal inconsistent states: any campaign with a pending queue should be actionable.
     if campaign.pending_count > 0 and campaign.status in {'draft', 'completed', 'cancelled'}:
@@ -1016,20 +1046,7 @@ def export_failures_csv(db: Session, campaign_id: int) -> bytes:
 
 
 def _read_campaign_counts(db: Session, campaign_id: int) -> dict:
-    total = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id)) or 0
-    valid = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status != 'invalid')) or 0
-    invalid = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status == 'invalid')) or 0
-    sent = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status == 'sent')) or 0
-    failed = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status == 'failed')) or 0
-    pending = db.scalar(select(func.count(Contact.id)).where(Contact.campaign_id == campaign_id, Contact.status.in_(['pending', 'processing']))) or 0
-    return {
-        'total': int(total),
-        'valid': int(valid),
-        'invalid': int(invalid),
-        'sent': int(sent),
-        'failed': int(failed),
-        'pending': int(pending),
-    }
+    return _count_contacts_by_status(db, campaign_id)
 
 
 def _build_failed_reprocessing_payload(db: Session, campaign: Campaign) -> Optional[dict]:
@@ -1125,14 +1142,20 @@ def build_results_payload(db: Session, campaign_id: int) -> dict:
         if started_at is not None:
             duration_seconds = max(0, int((end_at - started_at).total_seconds()))
 
-    failure_contacts = db.scalars(
-        select(Contact).where(Contact.campaign_id == campaign.id, Contact.status.in_(['failed', 'invalid']))
+    failure_groups = db.execute(
+        select(Contact.status, Contact.error_message, func.count(Contact.id))
+        .where(
+            Contact.campaign_id == campaign.id, 
+            Contact.status.in_(['failed', 'invalid'])
+        )
+        .group_by(Contact.status, Contact.error_message)
     ).all()
+
     grouped_failures: dict[str, dict] = {}
-    for contact in failure_contacts:
+    for st, err_msg, count_val in failure_groups:
         normalized = _normalize_operational_issue(
-            'invalid_contact' if contact.status == 'invalid' else 'send_failure',
-            contact.error_message,
+            'invalid_contact' if st == 'invalid' else 'send_failure',
+            err_msg,
             None,
             None,
         )
@@ -1150,7 +1173,7 @@ def build_results_payload(db: Session, campaign_id: int) -> dict:
                 'fingerprint': normalized['fingerprint'],
             },
         )
-        item['count'] += 1
+        item['count'] += int(count_val)
     top_failures = sorted(grouped_failures.values(), key=lambda item: item['count'], reverse=True)[:4]
     reprocessing_payload = _build_failed_reprocessing_payload(db, campaign)
 
@@ -1338,12 +1361,24 @@ def build_activity_payload(db: Session, campaign_id: int) -> dict:
     }
 
 
+_stats_cache: dict[str, tuple[float, dict]] = {}
+
+
 def stats_payload(
     db: Session,
     campaign_id: int,
     runtime_batch_size: int | None = None,
     service_health: dict | None = None,
 ) -> dict:
+    cache_key = f"{campaign_id}_{runtime_batch_size}"
+    now_ts = time.time()
+    cached = _stats_cache.get(cache_key)
+    if cached and (now_ts - cached[0] < 3.0):
+        res = cached[1]
+        if service_health:
+            res['service_health'] = service_health
+        return res
+
     campaign = get_campaign_or_404(db, campaign_id)
     refresh_campaign_counters(db, campaign.id)
     db.commit()
@@ -1378,7 +1413,7 @@ def stats_payload(
     current_cycle_total = current_cycle_sent + current_cycle_failed + current_cycle_pending
     performance_payload = _build_performance_payload(campaign, current_cycle_pending, _collect_cycle_event_times(db, campaign))
 
-    return {
+    result = {
         'campaign_id': campaign.id,
         'status': campaign.status,
         'sent': campaign.sent_count,
@@ -1418,3 +1453,5 @@ def stats_payload(
         'service_health': service_health or {'services': {}, 'latest_alert': None},
         **performance_payload,
     }
+    _stats_cache[cache_key] = (now_ts, result)
+    return result

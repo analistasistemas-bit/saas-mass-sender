@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1774795189631,
+  "lastScanned": 1776352920723,
   "projectRoot": "/Users/diego/Desktop/IA/mass-sender-saas-vps",
   "techStack": {
     "languages": [
@@ -58,44 +58,65 @@
   },
   "customNotes": [],
   "directoryMap": {
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1776352920696,
+      "keyFiles": [
+        "database.cpython-311.pyc",
+        "main.cpython-311.pyc",
+        "models.cpython-311.pyc",
+        "schemas.cpython-311.pyc"
+      ]
+    },
     "bugs": {
       "path": "bugs",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1774795189594,
+      "lastAccessed": 1776352920700,
+      "keyFiles": []
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 0,
+      "lastAccessed": 1776352920700,
       "keyFiles": []
     },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 6,
-      "lastAccessed": 1774795189605,
+      "fileCount": 8,
+      "lastAccessed": 1776352920701,
       "keyFiles": [
+        "DOSSIE_TECNICO_SISTEMA_ATUAL.md",
+        "LEVANTAMENTO_TECNICO_SISTEMA_ATUAL.md",
         "LOCAL_ENVIRONMENT.md",
         "OPERATIONAL_CONTROLS.md",
-        "OPERATIONS.md",
-        "TESTING_RESOLUTION.md",
-        "USER_GUIDE.md"
+        "OPERATIONS.md"
       ]
     },
     "services": {
       "path": "services",
       "purpose": "Business logic services",
-      "fileCount": 4,
-      "lastAccessed": 1774795189606,
+      "fileCount": 14,
+      "lastAccessed": 1776352920701,
       "keyFiles": [
         "__init__.py",
-        "campaign_service.py",
-        "send_engine.py",
-        "whatsapp.py"
+        "agent_settings_service.py",
+        "ai_agent.py",
+        "app_settings.py",
+        "campaign_service.py"
       ]
     },
     "static": {
       "path": "static",
       "purpose": "Static files",
-      "fileCount": 4,
-      "lastAccessed": 1774795189607,
+      "fileCount": 5,
+      "lastAccessed": 1776352920701,
       "keyFiles": [
+        "agent-settings.js",
         "app.js",
         "common.js",
         "index.js",
@@ -105,9 +126,10 @@
     "templates": {
       "path": "templates",
       "purpose": null,
-      "fileCount": 3,
-      "lastAccessed": 1774795189615,
+      "fileCount": 4,
+      "lastAccessed": 1776352920702,
       "keyFiles": [
+        "agent_settings.html",
         "campaign.html",
         "index.html",
         "login.html"
@@ -116,28 +138,34 @@
     "test-results": {
       "path": "test-results",
       "purpose": null,
-      "fileCount": 1,
-      "lastAccessed": 1774795189615,
-      "keyFiles": []
+      "fileCount": 7,
+      "lastAccessed": 1776352920702,
+      "keyFiles": [
+        "simulator-chat-ui.png",
+        "validate-handoff-message-2step.js",
+        "validate-handoff-message.js",
+        "validate-simulator-history.js",
+        "validate-simulator-ui-2step.js"
+      ]
     },
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 13,
-      "lastAccessed": 1774795189615,
+      "fileCount": 23,
+      "lastAccessed": 1776352920702,
       "keyFiles": [
+        "test_agent_settings_service.py",
+        "test_ai_agent.py",
         "test_bridge_routes.py",
         "test_campaign_actions_ui_payloads.py",
-        "test_campaign_state.py",
-        "test_csv_parser.py",
-        "test_env_loading.py"
+        "test_campaign_state.py"
       ]
     },
     "utils": {
       "path": "utils",
       "purpose": "Utility functions",
       "fileCount": 8,
-      "lastAccessed": 1774795189616,
+      "lastAccessed": 1776352920702,
       "keyFiles": [
         "__init__.py",
         "config.py",
@@ -150,7 +178,7 @@
       "path": "wa-bridge",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1774795189616,
+      "lastAccessed": 1776352920703,
       "keyFiles": [
         "Dockerfile",
         "fetch-qr.js",
@@ -163,7 +191,7 @@
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 1,
-      "lastAccessed": 1774795189618,
+      "lastAccessed": 1776352920706,
       "keyFiles": [
         "contatos_e2e.csv"
       ]
@@ -171,28 +199,30 @@
     "wa-bridge/lib": {
       "path": "wa-bridge/lib",
       "purpose": "Library code",
-      "fileCount": 2,
-      "lastAccessed": 1774795189618,
+      "fileCount": 4,
+      "lastAccessed": 1776352920706,
       "keyFiles": [
-        "process-guard.js",
-        "recipient-resolver.js"
+        "env-loader.js",
+        "inbound-webhook.js",
+        "process-guard.js"
       ]
     },
     "wa-bridge/node_modules": {
       "path": "wa-bridge/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1774795189618,
+      "lastAccessed": 1776352920707,
       "keyFiles": []
     },
     "wa-bridge/tests": {
       "path": "wa-bridge/tests",
       "purpose": "Test files",
-      "fileCount": 2,
-      "lastAccessed": 1774795189619,
+      "fileCount": 4,
+      "lastAccessed": 1776352920707,
       "keyFiles": [
-        "process-guard.test.js",
-        "recipient-resolver.test.js"
+        "env-loader.test.js",
+        "inbound-webhook.test.js",
+        "process-guard.test.js"
       ]
     }
   },
