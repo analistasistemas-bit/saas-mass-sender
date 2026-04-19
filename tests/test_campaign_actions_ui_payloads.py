@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database import Base
 from models import Campaign, Contact
+import services.campaign_service as _campaign_svc
 from services.campaign_service import (
     add_manual_contact,
     build_activity_payload,
@@ -276,9 +277,10 @@ def test_upload_contacts_replaces_previous_csv_contacts_and_preserves_manual_one
     assert {contact.source for contact in contacts} == {'manual', 'csv'}
 
 
-def test_upload_contacts_promotes_draft_campaign_to_ready():
+def test_upload_contacts_keeps_draft_campaign_in_draft():
+    # Importing contacts must NOT promote draft -> ready; that only happens when the message is saved.
     session = build_session()
-    campaign = Campaign(name='Upload libera fluxo', message_template='Oi {{nome}}', status='draft')
+    campaign = Campaign(name='Upload nao libera fluxo', message_template='Oi {{nome}}', status='draft')
     session.add(campaign)
     session.commit()
     session.refresh(campaign)
@@ -289,7 +291,7 @@ def test_upload_contacts_promotes_draft_campaign_to_ready():
 
     assert result['summary']['inserted'] == 1
     session.refresh(campaign)
-    assert campaign.status == 'ready'
+    assert campaign.status == 'draft'
 
 
 def test_stats_payload_reopens_completed_campaign_when_pending_exists():
@@ -326,7 +328,9 @@ def test_stats_payload_reopens_completed_campaign_when_pending_exists():
     assert campaign.finished_at is None
 
 
-def test_stats_payload_promotes_draft_campaign_when_pending_exists():
+def test_stats_payload_keeps_draft_campaign_in_draft_when_pending_exists():
+    # A draft campaign with pending contacts must stay draft until the message is saved.
+    _campaign_svc._stats_cache.clear()
     session = build_session()
     campaign = Campaign(name='Draft com fila', message_template='Oi {{nome}}', status='draft')
     session.add(campaign)
@@ -348,9 +352,10 @@ def test_stats_payload_promotes_draft_campaign_when_pending_exists():
     payload = stats_payload(session, campaign.id)
 
     session.refresh(campaign)
-    assert payload['status'] == 'ready'
+    assert payload['status'] == 'draft'
     assert payload['pending'] == 1
-    assert campaign.status == 'ready'
+    assert campaign.status == 'draft'
+    _campaign_svc._stats_cache.clear()  # prevent contaminating subsequent tests
 
 
 def test_start_campaign_allows_reopened_queue_without_new_test_when_history_exists():

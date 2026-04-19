@@ -77,8 +77,6 @@ def delete_campaign(db: Session, campaign_id: int) -> dict:
 def update_template(db: Session, campaign_id: int, message_template: str) -> Campaign:
     campaign = get_campaign_or_404(db, campaign_id)
     campaign.message_template = message_template
-    if campaign.status == 'draft':
-        campaign.status = 'ready'
     db.add(campaign)
     db.commit()
     db.refresh(campaign)
@@ -680,12 +678,6 @@ def upload_contacts(db: Session, campaign_id: int, payload: bytes) -> dict:
                 db.rollback()
 
     refresh_campaign_counters(db, campaign.id)
-    if campaign.status in {'draft', 'completed', 'cancelled'} and campaign.pending_count > 0:
-        campaign.status = 'ready'
-    if campaign.status == 'ready':
-        campaign.finished_at = None
-        if campaign.sent_count > 0 or campaign.failed_count > 0:
-            campaign.started_at = None
     db.add(campaign)
     db.commit()
 
@@ -735,12 +727,6 @@ def add_manual_contact(db: Session, campaign_id: int, name: str, phone: str, ema
         return {'ok': False, 'message': 'Este telefone já existe nesta campanha.'}
 
     refresh_campaign_counters(db, campaign.id)
-    if campaign.status in {'draft', 'completed', 'cancelled'}:
-        campaign.status = 'ready'
-    if campaign.status == 'ready':
-        campaign.finished_at = None
-        if campaign.sent_count > 0 or campaign.failed_count > 0:
-            campaign.started_at = None
     db.add(campaign)
     db.commit()
     db.refresh(contact)
@@ -773,6 +759,44 @@ def delete_contact_from_campaign(db: Session, campaign_id: int, contact_id: int)
     db.commit()
 
     return {'ok': True, 'message': 'Contato removido da campanha com sucesso.'}
+
+
+def update_contact_phone(db: Session, campaign_id: int, contact_id: int, phone: str) -> dict:
+    campaign = get_campaign_or_404(db, campaign_id)
+    if campaign.status not in {'draft', 'ready', 'paused'}:
+        return {'ok': False, 'message': 'Nao pode editar contato com a campanha em envio ou finalizada.'}
+
+    contact = db.get(Contact, contact_id)
+    if contact is None or contact.campaign_id != campaign.id:
+        return {'ok': False, 'message': 'Contato nao encontrado nesta campanha.'}
+
+    safe_phone = (phone or '').strip()
+    if not safe_phone:
+        return {'ok': False, 'message': 'Informe o telefone.'}
+
+    ok, phone_e164, error = normalize_br_phone(safe_phone)
+    if not ok or not phone_e164:
+        return {'ok': False, 'message': error or 'Telefone invalido para o padrao do Brasil (+55).'}
+
+    existing = db.scalar(
+        select(Contact).where(
+            Contact.campaign_id == campaign.id,
+            Contact.phone_e164 == phone_e164,
+            Contact.id != contact_id,
+        )
+    )
+    if existing:
+        return {'ok': False, 'message': 'Ja existe um contato com este telefone nesta campanha.'}
+
+    contact.phone_raw = safe_phone
+    contact.phone_e164 = phone_e164
+    contact.status = 'pending'
+    contact.error_message = None
+    db.add(contact)
+    refresh_campaign_counters(db, campaign.id)
+    db.commit()
+
+    return {'ok': True, 'message': 'Telefone atualizado e contato liberado para envio.'}
 
 
 def delete_imported_contacts_from_campaign(db: Session, campaign_id: int) -> dict:
@@ -834,8 +858,9 @@ def refresh_campaign_counters(db: Session, campaign_id: int) -> None:
     campaign.failed_count = counts['failed']
     campaign.pending_count = counts['pending']
 
-    # Self-heal inconsistent states: any campaign with a pending queue should be actionable.
-    if campaign.pending_count > 0 and campaign.status in {'draft', 'completed', 'cancelled'}:
+    # Self-heal inconsistent states.
+    # draft -> ready is ONLY done by dry_run; never promote draft here.
+    if campaign.pending_count > 0 and campaign.status in {'completed', 'cancelled'}:
         campaign.status = 'ready'
         campaign.finished_at = None
         if campaign.sent_count > 0 or campaign.failed_count > 0:
@@ -880,6 +905,11 @@ def dry_run(db: Session, campaign_id: int) -> dict:
     else:
         message = f'Esta ação não envia mensagens reais. Existem {campaign.pending_count} contatos prontos para envio.'
         empty_reason = None
+        if campaign.status == 'draft':
+            campaign.status = 'ready'
+            db.add(campaign)
+            db.commit()
+            log_event(db, campaign.id, None, 'campaign_state_change', f'dry_run promoted draft→ready; pending={campaign.pending_count}')
 
     return {
         'ok': True,
@@ -1451,6 +1481,7 @@ def stats_payload(
         },
         'runtime_profile': runtime_profile_payload(campaign, batch_size_current=runtime_batch_size),
         'service_health': service_health or {'services': {}, 'latest_alert': None},
+        'has_message': campaign.status != 'draft',
         **performance_payload,
     }
     _stats_cache[cache_key] = (now_ts, result)

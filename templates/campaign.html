@@ -134,7 +134,7 @@
 
           <div data-testid="primary-action" class="rounded-lg border border-brand/15 bg-brand/5 p-4">
             <div class="flex flex-col gap-3">
-              <button id="primary-action-button" type="button" class="primary-button w-full justify-center">
+              <button id="primary-action-button" type="button" class="primary-button w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed">
                 Carregando...
               </button>
               <div id="secondary-actions" class="flex flex-wrap gap-2"></div>
@@ -155,6 +155,11 @@
 
       <!-- Accordion de passos guiados -->
       <div class="flex flex-col" data-testid="campaign-stepper">
+
+        <!-- Barra de progresso entre passos -->
+        <div id="stepper-transition-bar" class="stepper-progress-bar">
+          <div class="stepper-progress-bar__fill"></div>
+        </div>
 
         <!-- Passo 1: Conectar WhatsApp -->
         <div class="accordion-step" data-step-key="0" data-step-state="active">
@@ -506,8 +511,20 @@
             <div class="mt-4 space-y-3">
               <p class="text-sm text-muted">
                 Envie uma mensagem de teste antes de disparar para toda a base.
-                Use o botao <strong class="font-medium text-ink">Simular envio</strong> acima para executar o teste.
+                Use o botao <strong class="font-medium text-ink">Enviar teste</strong> acima para executar.
               </p>
+              <div>
+                <label class="block text-xs font-medium text-muted mb-1" for="test-phone-input">
+                  Numero de teste <span class="text-subdued font-normal">(opcional — padrao: numero conectado)</span>
+                </label>
+                <input
+                  id="test-phone-input"
+                  type="tel"
+                  placeholder="Ex: 11999990000"
+                  class="w-full max-w-xs rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                />
+                <p id="test-phone-error" class="hidden mt-1 text-xs text-red-400"></p>
+              </div>
               <div class="rounded-lg border border-line bg-press p-4">
                 <p class="text-xs font-medium text-muted">Perfil de velocidade</p>
                 <div class="mt-2 flex flex-wrap items-center gap-2">

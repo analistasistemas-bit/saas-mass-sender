@@ -1923,6 +1923,47 @@ body {
   opacity: 0.45;
 }
 
+.accordion-step[data-step-state="blocked"] .accordion-step__chevron {
+  display: none;
+}
+
+.accordion-step[data-step-state="blocked"] .accordion-step__header::after {
+  content: "🔒";
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── Stepper transition progress bar ─────────────────────────────── */
+.stepper-progress-bar {
+  height: 3px;
+  margin: -4px 12px 4px;
+  border-radius: 2px;
+  background: var(--border-subtle);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.stepper-progress-bar.is-active {
+  opacity: 1;
+}
+
+.stepper-progress-bar__fill {
+  width: 40%;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--brand-accent);
+  animation: stepper-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes stepper-indeterminate {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(200%); }
+  100% { transform: translateX(-100%); }
+}
+
 /* ── Compact Stats Strip ────────────────────────────────────────── */
 .stats-strip-top {
   display: flex;

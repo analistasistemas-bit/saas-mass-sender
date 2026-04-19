@@ -73,7 +73,8 @@
             </div>
             <form method="post" action="/logout">
               <button
-                type="submit"
+                type="button"
+                onclick="this.closest('form').submit()"
                 class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger transition hover:bg-press"
                 role="menuitem"
               >
