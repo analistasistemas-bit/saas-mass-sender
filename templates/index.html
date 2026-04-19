@@ -13,20 +13,23 @@
         theme: {
           extend: {
             colors: {
-              ink: '#111827',
-              muted: '#6b7280',
-              shell: '#f9fafb',
-              line: '#e5e7eb',
-              brand: '#3b82f6',
-              success: '#22c55e',
-              warn: '#f59e0b',
-              danger: '#ef4444',
+              ink: 'var(--text-base)',
+              muted: 'var(--text-subdued)',
+              shell: 'var(--bg-base)',
+              line: 'var(--border-subtle)',
+              brand: 'var(--brand-accent)',
+              success: 'var(--brand-accent)',
+              warn: 'var(--semantic-warning)',
+              danger: 'var(--semantic-negative)',
+              surface: 'var(--bg-surface)',
+              elevated: 'var(--bg-elevated)',
+              press: 'var(--bg-press)',
             },
             fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'SpotifyMixUI', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
-              panel: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+              panel: 'var(--shadow-medium)',
             },
           },
         },
@@ -39,19 +42,19 @@
 
       <header class="flex items-start justify-between gap-4">
         <div class="space-y-1">
-          <h1 class="text-2xl font-bold tracking-tight text-ink">Campanhas</h1>
-          <p class="text-sm text-muted">Conecte o WhatsApp, prepare campanhas e acompanhe cada envio.</p>
+          <h1 class="text-[28px] font-bold tracking-tight text-ink">Campanhas</h1>
+          <p class="text-[13px] text-muted">Conecte o WhatsApp, prepare campanhas e acompanhe cada envio.</p>
         </div>
 
         <div class="relative" id="user-menu-wrap">
           <button
             type="button"
             id="user-menu-btn"
-            class="flex items-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-medium text-ink shadow-panel transition hover:border-brand/40 hover:bg-gray-50"
+            class="flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink shadow-panel transition hover:border-brand/40 hover:bg-press"
             aria-expanded="false"
             aria-haspopup="true"
           >
-            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">A</span>
+            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-black">A</span>
             <span>Admin</span>
             <svg class="h-4 w-4 text-muted transition-transform" id="user-menu-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
@@ -60,7 +63,7 @@
 
           <div
             id="user-menu-dropdown"
-            class="absolute right-0 z-20 mt-1 hidden w-44 rounded-lg border border-line bg-white py-1 shadow-lg"
+            class="absolute right-0 z-20 mt-1 hidden w-44 rounded-lg border border-line bg-surface py-1 shadow-lg"
             role="menu"
           >
             <div class="border-b border-line px-3 py-2">
@@ -70,7 +73,7 @@
             <form method="post" action="/logout">
               <button
                 type="submit"
-                class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger transition hover:bg-red-50"
+                class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger transition hover:bg-press"
                 role="menuitem"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -104,24 +107,24 @@
         })();
       </script>
 
-      <section class="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <article class="rounded-xl border border-line bg-white p-5">
+      <section class="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+        <article class="rounded-xl border border-line bg-surface p-6">
           <div class="flex flex-col gap-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p class="text-xs font-medium text-muted">Canal WhatsApp</p>
-                <h2 class="mt-1 text-lg font-semibold text-ink">Conexao do numero</h2>
+                <p class="text-[13px] font-medium text-[#b3b3b3]">Canal WhatsApp</p>
+                <h2 class="mt-1 text-[18px] font-bold text-ink">Conexao do numero</h2>
               </div>
               <span id="bridge-badge" class="status-badge status-badge--info">Verificando...</span>
             </div>
 
-            <div class="rounded-lg border border-line bg-gray-50 p-4">
+            <div class="rounded-lg border border-line bg-press p-4">
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p class="text-xs font-medium text-muted">Status da conexao</p>
                   <p id="bridge-summary" class="mt-1 text-sm font-semibold text-ink">Carregando status da sessao.</p>
                 </div>
-                <div id="bridge-polling" class="inline-flex items-center gap-1.5 rounded-md border border-line bg-white px-2.5 py-1.5 text-xs font-medium text-muted">
+                <div id="bridge-polling" class="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1.5 text-xs font-medium text-muted">
                   <span class="pulse-dot"></span>
                   Atualizando...
                 </div>
@@ -137,7 +140,7 @@
               <button type="button" id="bridge-restart" class="danger-button">Trocar numero</button>
             </div>
 
-            <div class="rounded-lg border border-line bg-gray-50 p-4">
+            <div class="rounded-lg border border-line bg-press p-4">
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <p class="text-xs font-medium text-muted">Agent Settings</p>
@@ -150,7 +153,7 @@
               </p>
             </div>
 
-            <div id="qr-wrap" class="hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+            <div id="qr-wrap" class="hidden rounded-lg border border-dashed border-line bg-press p-4">
               <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <img id="qr-image" alt="QR Code WhatsApp" class="qr-image hidden" />
                 <div class="space-y-2">
@@ -165,11 +168,11 @@
           </div>
         </article>
 
-        <article class="rounded-xl border border-line bg-white p-5">
+        <article class="rounded-xl border border-line bg-surface p-6">
           <div class="flex h-full flex-col justify-between gap-5">
             <div class="space-y-2">
-              <p class="text-xs font-medium text-muted">Nova campanha</p>
-              <h2 class="text-lg font-semibold text-ink">Criar campanha</h2>
+              <p class="text-[13px] font-medium text-[#b3b3b3]">Nova campanha</p>
+              <h2 class="text-[18px] font-bold text-ink">Criar campanha</h2>
               <p class="text-sm text-muted">
                 O sistema cria o rascunho e leva voce direto para a tela de configuracao e envio.
               </p>
@@ -177,20 +180,20 @@
 
             <form method="post" action="/campaigns" class="space-y-3">
               <label class="block space-y-1.5">
-                <span class="text-sm font-medium text-gray-700">Nome da campanha</span>
+                <span class="text-sm font-medium text-muted">Nome da campanha</span>
                 <input
                   type="text"
                   name="name"
                   placeholder="Ex.: Convite evento Recife"
                   required
                   minlength="3"
-                  class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+                  class="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
                 />
               </label>
               <button type="submit" class="primary-button w-full justify-center">Criar campanha</button>
             </form>
 
-            <div class="rounded-lg border border-line bg-gray-50 p-4">
+            <div class="rounded-lg border border-line bg-press p-4">
               <p class="text-xs font-medium text-muted">Fluxo padrao</p>
               <ol class="mt-2 space-y-1 text-sm text-muted">
                 <li>1. Conectar o numero do WhatsApp</li>
@@ -203,26 +206,26 @@
         </article>
       </section>
 
-      <section class="space-y-4">
+      <section class="space-y-5">
         <div class="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p class="text-xs font-medium text-muted">Campanhas</p>
-            <h2 class="mt-1 text-lg font-semibold text-ink">Operacoes recentes</h2>
+            <p class="text-[13px] font-medium text-muted">Campanhas</p>
+            <h2 class="mt-1 text-[18px] font-bold text-ink">Operacoes recentes</h2>
           </div>
           <p class="text-sm text-muted">Abra uma campanha para configurar e acompanhar o envio.</p>
         </div>
 
-        <div id="campaigns-grid" class="grid gap-4 xl:grid-cols-3 md:grid-cols-2{% if not campaigns %} hidden{% endif %}">
+        <div id="campaigns-grid" class="grid gap-5 xl:grid-cols-3 md:grid-cols-2{% if not campaigns %} hidden{% endif %}">
           {% for c in campaigns %}
           <article
-            class="group rounded-xl border border-line bg-white p-5 transition-colors hover:border-brand/30"
+            class="group rounded-xl border border-line bg-surface p-6 transition-colors hover:border-brand/30"
             data-campaign-card
             data-campaign-id="{{ c.id }}"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="text-xs font-medium text-muted">Campanha {{ c.id }}</p>
-                <h3 class="mt-1 text-base font-semibold text-ink">{{ c.name }}</h3>
+                <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Campanha {{ c.id }}</p>
+                <h3 class="mt-1 text-[16px] font-bold text-ink">{{ c.name }}</h3>
               </div>
               <div class="flex shrink-0 flex-col items-end gap-2 self-start">
                 <span class="status-badge" data-state="{{ c.status }}">{{ c.status }}</span>
@@ -240,19 +243,19 @@
               </div>
             </div>
             <a href="/campaigns/{{ c.id }}" class="mt-3 block">
-              <p class="text-sm text-muted">Configure, teste e acompanhe o envio desta campanha.</p>
-              <dl class="mt-4 grid grid-cols-3 gap-2 text-sm">
-                <div class="rounded-lg border border-line bg-gray-50 p-2.5">
-                  <dt class="text-xs font-medium text-muted">Validos</dt>
-                  <dd class="mt-0.5 text-lg font-semibold text-ink">{{ c.valid_contacts }}</dd>
+              <p class="text-[13px] text-muted">Configure, teste e acompanhe o envio desta campanha.</p>
+              <dl class="mt-4 flex gap-4 text-sm">
+                <div class="flex-1 rounded-lg border border-line bg-press p-3">
+                  <dt class="text-[11px] font-medium text-[#b3b3b3]">Validos</dt>
+                  <dd class="mt-0.5 text-[20px] font-bold text-ink">{{ c.valid_contacts }}</dd>
                 </div>
-                <div class="rounded-lg border border-line bg-gray-50 p-2.5">
-                  <dt class="text-xs font-medium text-muted">Enviados</dt>
-                  <dd class="mt-0.5 text-lg font-semibold text-ink">{{ c.sent_count }}</dd>
+                <div class="flex-1 rounded-lg border border-line bg-press p-3">
+                  <dt class="text-[11px] font-medium text-[#b3b3b3]">Enviados</dt>
+                  <dd class="mt-0.5 text-[20px] font-bold text-ink">{{ c.sent_count }}</dd>
                 </div>
-                <div class="rounded-lg border border-line bg-gray-50 p-2.5">
-                  <dt class="text-xs font-medium text-muted">Falhas</dt>
-                  <dd class="mt-0.5 text-lg font-semibold text-ink">{{ c.failed_count }}</dd>
+                <div class="flex-1 rounded-lg border border-line bg-press p-3">
+                  <dt class="text-[11px] font-medium text-[#b3b3b3]">Falhas</dt>
+                  <dd class="mt-0.5 text-[20px] font-bold text-ink">{{ c.failed_count }}</dd>
                 </div>
               </dl>
               <div class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand">
@@ -263,7 +266,7 @@
           </article>
           {% endfor %}
         </div>
-        <div id="campaigns-empty-state" class="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center{% if campaigns %} hidden{% endif %}">
+        <div id="campaigns-empty-state" class="rounded-xl border border-dashed border-line bg-surface p-10 text-center{% if campaigns %} hidden{% endif %}">
           <p class="text-xs font-medium text-muted">Nenhuma campanha criada</p>
           <h3 class="mt-2 text-lg font-semibold text-ink">Crie a primeira campanha para comecar</h3>
           <p class="mx-auto mt-2 max-w-lg text-sm text-muted">
@@ -282,7 +285,7 @@
         </div>
 
         <div class="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-          <article class="rounded-xl border border-line bg-white p-5">
+          <article class="rounded-xl border border-line bg-surface p-5">
             <div class="flex items-center justify-between gap-3">
               <div>
                 <p class="text-xs font-medium text-muted">Fila operacional</p>
@@ -292,13 +295,13 @@
             </div>
 
             <div id="conversations-list" class="mt-4 space-y-3"></div>
-            <div id="conversations-empty-state" class="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <div id="conversations-empty-state" class="mt-4 rounded-xl border border-dashed border-line bg-press p-6 text-center">
               <p class="text-xs font-medium text-muted">Sem conversas recentes</p>
               <p class="mt-2 text-sm text-muted">Quando clientes responderem ao número conectado, elas aparecerão aqui.</p>
             </div>
           </article>
 
-          <article class="rounded-xl border border-line bg-white p-5">
+          <article class="rounded-xl border border-line bg-surface p-5">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <p class="text-xs font-medium text-muted">Detalhe</p>
@@ -307,12 +310,12 @@
               <span id="conversation-detail-badge" class="status-badge status-badge--info">Aguardando</span>
             </div>
 
-            <div id="conversation-detail-empty" class="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+            <div id="conversation-detail-empty" class="mt-4 rounded-xl border border-dashed border-line bg-press p-6 text-center">
               <p class="text-sm text-muted">Selecione uma conversa para ver o histórico e acionar controles manuais.</p>
             </div>
 
             <div id="conversation-detail-panel" class="hidden">
-              <div class="mt-4 rounded-lg border border-line bg-gray-50 p-4">
+              <div class="mt-4 rounded-lg border border-line bg-press p-4">
                 <p class="text-xs font-medium text-muted">Cliente</p>
                 <p id="conversation-detail-phone" class="mt-1 text-sm font-semibold text-ink"></p>
                 <p id="conversation-detail-meta" class="mt-2 text-xs text-muted"></p>

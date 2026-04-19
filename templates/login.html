@@ -13,17 +13,20 @@
         theme: {
           extend: {
             colors: {
-              ink: '#111827',
-              muted: '#6b7280',
-              shell: '#f9fafb',
-              line: '#e5e7eb',
-              brand: '#3b82f6',
-              success: '#22c55e',
-              warn: '#f59e0b',
-              danger: '#ef4444',
+              ink: 'var(--text-base)',
+              muted: 'var(--text-subdued)',
+              shell: 'var(--bg-base)',
+              line: 'var(--border-subtle)',
+              brand: 'var(--brand-accent)',
+              success: 'var(--brand-accent)',
+              warn: 'var(--semantic-warning)',
+              danger: 'var(--semantic-negative)',
+              surface: 'var(--bg-surface)',
+              elevated: 'var(--bg-elevated)',
+              press: 'var(--bg-press)',
             },
             fontFamily: {
-              sans: ['Inter', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'SpotifyMixUI', 'system-ui', 'sans-serif'],
             },
           },
         },
@@ -32,7 +35,7 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="flex min-h-screen items-center justify-center bg-shell text-ink">
-    <main class="w-full max-w-sm rounded-xl border border-line bg-white p-6">
+    <main class="w-full max-w-sm rounded-xl border border-line bg-surface p-6">
       <h1 class="text-xl font-bold text-ink">Mass Sender</h1>
       <p class="mt-1 text-sm text-muted">Informe a senha para acessar o painel.</p>
       {% if error %}
@@ -40,13 +43,13 @@
       {% endif %}
       <form method="post" action="/login" class="mt-6 space-y-4">
         <label class="block space-y-1.5">
-          <span class="text-sm font-medium text-gray-700">Senha</span>
+          <span class="text-sm font-medium text-muted">Senha</span>
           <input
             type="password"
             name="password"
             required
             placeholder="Digite sua senha"
-            class="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            class="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </label>
         <button type="submit" class="primary-button w-full justify-center">Entrar</button>
