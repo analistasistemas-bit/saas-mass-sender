@@ -33,7 +33,7 @@
               'white/85': 'rgba(255,255,255,0.85)',
             },
             fontFamily: {
-              sans: ['Inter', 'SpotifyMixUI', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif'],
               display: ['Inter', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
@@ -48,35 +48,35 @@
   </head>
   <body class="min-h-screen bg-shell text-ink">
     <main class="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-8" data-agent-settings-page="true">
-      <header class="rounded-[28px] bg-[#252525] px-6 py-6 text-[#ffffff] shadow-command">
+      <header class="agent-settings-header rounded-xl border border-line bg-elevated px-6 py-6 text-ink">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div class="max-w-3xl">
-            <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-white/80 transition hover:text-white">
+            <a href="/" class="inline-flex items-center gap-2 text-sm font-medium text-brand transition hover:opacity-80">
               <span>←</span>
               <span>Voltar para campanhas</span>
             </a>
-            <p class="mt-5 text-xs font-semibold uppercase tracking-[0.24em] text-white/60">Centro de controle</p>
-            <h1 class="mt-2 font-display text-4xl leading-tight">Agent Settings</h1>
-            <p class="mt-3 max-w-2xl text-sm leading-6 text-white/78">
+            <p class="mt-5 text-xs font-medium uppercase tracking-widest text-muted">Centro de controle</p>
+            <h1 class="mt-2 text-2xl font-bold text-ink">Agent Settings</h1>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-muted">
               Configure o comportamento do agente comercial, as fontes de conhecimento e o ambiente de teste sem espalhar regras pela operação.
             </p>
           </div>
-          <div class="grid min-w-[18rem] gap-3 rounded-3xl border border-white/10 bg-white/6 p-4 backdrop-blur">
+          <div class="grid min-w-[16rem] gap-3 rounded-xl border border-line bg-press p-4">
             <div>
-              <p class="text-xs uppercase tracking-[0.18em] text-white/55">Status do agente</p>
+              <p class="text-xs font-medium text-muted">Status do agente</p>
               <div class="mt-2 flex items-center gap-2">
                 <span id="agent-settings-status-badge" class="status-badge status-badge--info">Carregando</span>
-                <span id="agent-settings-status-text" class="text-sm text-white/85">Preparando configuração</span>
+                <span id="agent-settings-status-text" class="text-sm text-muted">Preparando configuração</span>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-3 text-sm">
-              <div class="rounded-2xl bg-white/8 px-3 py-3">
-                <p class="text-xs text-white/55">Modelo principal</p>
-                <p id="agent-settings-summary-model" class="mt-1 font-medium text-white">-</p>
+              <div class="rounded-lg border border-line bg-surface px-3 py-2.5">
+                <p class="text-xs text-muted">Modelo principal</p>
+                <p id="agent-settings-summary-model" class="mt-0.5 font-medium text-ink">-</p>
               </div>
-              <div class="rounded-2xl bg-white/8 px-3 py-3">
-                <p class="text-xs text-white/55">Prioridade</p>
-                <p id="agent-settings-summary-priority" class="mt-1 font-medium text-white">-</p>
+              <div class="rounded-lg border border-line bg-surface px-3 py-2.5">
+                <p class="text-xs text-muted">Prioridade</p>
+                <p id="agent-settings-summary-priority" class="mt-0.5 font-medium text-ink">-</p>
               </div>
             </div>
           </div>
@@ -84,8 +84,8 @@
       </header>
 
       <section class="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
-        <aside class="rounded-[28px] border border-line bg-panel p-4 shadow-panel">
-          <p class="px-2 text-xs font-semibold uppercase tracking-[0.24em] text-muted">Módulos</p>
+        <aside class="agent-settings-aside rounded-xl border border-line bg-surface p-4">
+          <p class="px-2 text-xs font-medium uppercase tracking-widest text-muted">Módulos</p>
           <nav class="mt-4 space-y-2" id="agent-settings-tabs">
             <button type="button" class="agent-tab-button is-active" data-tab="inbound">Atendimento IA</button>
             <button type="button" class="agent-tab-button" data-tab="personality">Personalidade</button>
@@ -124,7 +124,7 @@
               </label>
             </div>
 
-            <div class="mt-6 grid gap-5 rounded-[24px] border border-line bg-shell p-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div class="mt-6 grid gap-5 rounded-xl border border-line bg-shell p-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
               <div class="space-y-4">
                 <div>
                   <p class="agent-panel__eyebrow">Teste rápido</p>
@@ -140,7 +140,7 @@
                 </label>
                 <button type="button" id="run-inbound-test" class="primary-button">Testar modelo</button>
               </div>
-              <div class="rounded-[22px] border border-dashed border-line bg-white p-5">
+              <div class="rounded-xl border border-dashed border-line bg-elevated p-5">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p class="agent-panel__eyebrow">Resultado</p>
@@ -149,7 +149,7 @@
                   <span id="inbound-test-badge" class="status-badge status-badge--info">Aguardando</span>
                 </div>
                 <p id="inbound-test-meta" class="mt-3 text-sm text-muted">Escolha um modelo e dispare um teste para ver decisão, fonte, confiança e tempo.</p>
-                <div class="mt-4 rounded-2xl bg-shell p-4">
+                <div class="mt-4 rounded-lg bg-shell p-4">
                   <p id="inbound-test-response" class="whitespace-pre-wrap text-sm leading-6 text-ink">Nenhum teste executado.</p>
                 </div>
               </div>
@@ -242,7 +242,7 @@
               </div>
             </div>
             <div class="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-              <div class="rounded-[24px] border border-line bg-shell p-5">
+              <div class="rounded-xl border border-line bg-shell p-5">
                 <label class="agent-field">
                   <span class="agent-field__label">Arquivo CSV ou XLSX</span>
                   <input id="spreadsheet-file" type="file" class="agent-input" accept=".csv,.xlsx" />
@@ -253,7 +253,7 @@
                 </div>
                 <p id="spreadsheet-upload-meta" class="mt-3 text-sm text-muted">Nenhum upload recente.</p>
               </div>
-              <div class="rounded-[24px] border border-line bg-white p-5">
+              <div class="rounded-xl border border-line bg-elevated p-5">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p class="agent-panel__eyebrow">Preview</p>
@@ -262,7 +262,7 @@
                   <button type="button" id="spreadsheet-activate-button" class="secondary-button">Ativar planilha</button>
                 </div>
                 <div id="spreadsheet-mapping" class="mt-4 grid gap-3 md:grid-cols-2"></div>
-                <div id="spreadsheet-preview" class="mt-5 overflow-x-auto rounded-2xl border border-line"></div>
+                <div id="spreadsheet-preview" class="mt-5 overflow-x-auto rounded-lg border border-line"></div>
               </div>
             </div>
           </article>
@@ -327,7 +327,7 @@
                   <span class="agent-field__label">Mensagem do cliente</span>
                   <textarea id="simulator-prompt" rows="8" class="agent-input" placeholder="Ex.: Quero saber se vocês têm Tricoline Floral em estoque."></textarea>
                 </label>
-                <div class="rounded-[24px] border border-line bg-white p-4">
+                <div class="rounded-xl border border-line bg-elevated p-4">
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <p class="agent-panel__eyebrow">Contexto ativo</p>

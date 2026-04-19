@@ -26,7 +26,7 @@
               press: 'var(--bg-press)',
             },
             fontFamily: {
-              sans: ['Inter', 'SpotifyMixUI', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
               panel: 'var(--shadow-medium)',
@@ -38,6 +38,8 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="min-h-screen bg-shell text-ink">
+    {% set STATUS_PT = {'draft': 'Rascunho', 'ready': 'Pronta', 'running': 'Em envio', 'paused': 'Pausada', 'completed': 'Concluída', 'cancelled': 'Cancelada'} %}
+    {% set CONTACT_PT = {'pending': 'Pendente', 'processing': 'Processando', 'sent': 'Enviado', 'failed': 'Falha', 'invalid': 'Inválido'} %}
     <main
       class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8"
       data-campaign-id="{{ campaign.id }}"
@@ -63,7 +65,7 @@
             <div class="space-y-2">
               <div class="flex flex-wrap items-center gap-2">
                 <h1 class="text-[28px] font-bold tracking-tight text-ink">{{ campaign.name }}</h1>
-                <span id="campaign-status-badge" class="status-badge" data-state="{{ campaign.status }}">{{ campaign.status }}</span>
+                <span id="campaign-status-badge" class="status-badge" data-state="{{ campaign.status }}">{{ STATUS_PT.get(campaign.status, campaign.status) }}</span>
                 <span id="bridge-state-badge" class="status-badge status-badge--muted">Verificando WhatsApp</span>
               </div>
               <p id="status-narrative" data-testid="status-narrative" class="max-w-2xl text-sm text-muted">
@@ -116,7 +118,7 @@
           <div class="flex flex-col gap-5">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p class="text-[13px] font-medium text-[#b3b3b3]">Proxima acao</p>
+                <p class="text-[13px] font-medium text-muted">Proxima acao</p>
                 <h2 id="primary-title" class="mt-1 text-[18px] font-bold text-ink">Preparando campanha</h2>
                 <p id="primary-description" class="mt-2 max-w-xl text-sm text-muted">
                   O sistema vai destacar apenas a proxima decisao importante.
@@ -156,7 +158,7 @@
           <div class="flex flex-col gap-4">
             <div class="flex items-start justify-between gap-3">
               <div>
-                <p class="text-[13px] font-medium text-[#b3b3b3]">Progresso</p>
+                <p class="text-[13px] font-medium text-muted">Progresso</p>
                 <h2 class="mt-1 text-[18px] font-bold text-ink">Acompanhamento</h2>
                 <div class="mt-2 flex flex-wrap items-center gap-2">
                   <span id="runtime-profile-badge" class="status-badge status-badge--muted">Perfil conservador</span>
@@ -219,7 +221,7 @@
           <div class="results-layout">
             <div class="results-header">
               <div class="results-header__main">
-                <p class="text-[13px] font-medium text-[#b3b3b3]">Resultados</p>
+                <p class="text-[13px] font-medium text-muted">Resultados</p>
                 <h2 id="results-headline" class="mt-1 text-[18px] font-bold text-ink">Carregando leitura final</h2>
                 <p id="results-summary" class="mt-2 max-w-2xl text-sm text-muted">
                   O sistema esta consolidando os indicadores mais relevantes para a operacao.
@@ -285,7 +287,7 @@
         <article class="min-w-0 rounded-xl border border-line bg-surface p-6">
           <div class="flex flex-col gap-5">
             <div>
-              <p class="text-[13px] font-medium text-[#b3b3b3]">Mensagem e validacao</p>
+              <p class="text-[13px] font-medium text-muted">Mensagem e validacao</p>
               <h2 class="mt-1 text-[18px] font-bold text-ink">Prepare a campanha antes do envio</h2>
             </div>
 
@@ -586,7 +588,7 @@
                     <td class="px-3 py-2.5">{{ c.phone_e164 or '-' }}</td>
                     <td class="px-3 py-2.5">{{ c.email }}</td>
                     <td class="px-3 py-2.5">
-                      <span class="contact-status-pill contact-status-pill--{{ c.status }}">{{ c.status }}</span>
+                      <span class="contact-status-pill contact-status-pill--{{ c.status }}">{{ CONTACT_PT.get(c.status, c.status) }}</span>
                     </td>
                     <td class="px-3 py-2.5">{{ c.error_message or '-' }}</td>
                     <td class="px-3 py-2.5">
@@ -642,7 +644,7 @@
       <section class="rounded-xl border border-line bg-surface p-6">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p class="text-[13px] font-medium text-[#b3b3b3]">Atividade</p>
+            <p class="text-[13px] font-medium text-muted">Atividade</p>
             <h2 class="mt-1 text-[18px] font-bold text-ink">Resumo, marcos e incidentes</h2>
             <p class="mt-1 text-sm text-muted">
               Sinal operacional prioritario. Detalhe tecnico aparece quando necessario.
