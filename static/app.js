@@ -112,7 +112,20 @@
   const executionProgressPill = document.getElementById('execution-progress-pill');
   const executionProgressPillLabel = document.getElementById('execution-progress-pill-label');
   const toastRegion = document.getElementById('toast-region');
-  const stepItems = Array.from(document.querySelectorAll('.stepper-item'));
+  const stepItems = Array.from(document.querySelectorAll('[data-step-key]'));
+
+  // Accordion click handler — passos concluídos toggleam; ativo e bloqueado ignoram
+  document.querySelectorAll('[data-accordion-trigger]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const step = btn.closest('[data-step-key]');
+      if (!step) return;
+      if (step.dataset.stepState === 'blocked') return;
+      if (step.dataset.stepState === 'done') {
+        step.classList.toggle('is-open');
+      }
+    });
+  });
+
   const executionBarStorageKey = `campaign:${campaignId}:execution-bar-collapsed`;
   const SPEED_PRESETS = {
     conservative: {
@@ -859,7 +872,7 @@
     const sending = uiState === 'running' || uiState === 'paused' || uiState === 'completed' || uiState === 'cancelled';
     const done = uiState === 'completed';
     return [
-      session?.connected ? 'done' : uiState === 'draft' ? 'active' : 'blocked',
+      session?.connected ? 'done' : 'active',
       hasContacts ? 'done' : uiState === 'draft' ? 'active' : 'blocked',
       hasContacts ? 'done' : 'blocked',
       tested ? 'done' : uiState === 'ready-awaiting-test' ? 'active' : hasContacts ? 'blocked' : 'blocked',
@@ -870,11 +883,21 @@
 
   function renderStepper(uiState, currentStats, session) {
     const states = getStepperState(uiState, currentStats, session);
+    const statusLabels = { done: 'Concluído', active: 'Em andamento', blocked: '' };
     stepItems.forEach((item, index) => {
       const state = states[index] || 'blocked';
       item.dataset.stepState = state;
-      const dot = item.querySelector('.stepper-item__dot');
-      if (dot) dot.textContent = state === 'done' ? '✓' : String(index + 1);
+
+      const numEl = item.querySelector('.accordion-step__number');
+      if (numEl) numEl.textContent = state === 'done' ? '✓' : String(index + 1);
+
+      const statusEl = item.querySelector('.accordion-step__status');
+      if (statusEl) statusEl.textContent = statusLabels[state] || '';
+
+      const headerBtn = item.querySelector('[data-accordion-trigger]');
+      if (headerBtn) headerBtn.disabled = state === 'blocked';
+
+      if (state === 'active') item.classList.remove('is-open');
     });
   }
 
@@ -1260,7 +1283,7 @@
     currentPrimaryAction = primary.key;
     primaryTitle.textContent = primary.label;
     primaryDescription.textContent = primary.description;
-    primaryRule.textContent = 'A tela mostra apenas a proxima acao dominante.';
+    if (primaryRule) primaryRule.textContent = 'A tela mostra apenas a proxima acao dominante.';
     actionInsightText.textContent = getNarrativeStatus(uiState, currentStats, bridgeState);
     primaryButton.textContent = primary.label;
 

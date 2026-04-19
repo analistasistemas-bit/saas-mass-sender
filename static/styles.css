@@ -1786,3 +1786,209 @@ body {
     display: grid;
   }
 }
+
+/* ── Accordion Steps ───────────────────────────────────────────── */
+.accordion-step {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.accordion-step + .accordion-step {
+  margin-top: 8px;
+}
+
+.accordion-step__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.accordion-step__header:hover:not([disabled]) {
+  background: var(--bg-press);
+}
+
+.accordion-step__number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+  color: var(--text-subdued);
+  border: 1px solid var(--border-subtle);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.accordion-step__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-subdued);
+  flex: 1;
+  transition: color 0.15s;
+}
+
+.accordion-step__status {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-subdued);
+  margin-left: auto;
+}
+
+.accordion-step__chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--text-subdued);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.accordion-step__body {
+  display: none;
+  padding: 0 20px 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Estado: ativo (passo atual) */
+.accordion-step[data-step-state="active"] {
+  border-color: rgba(62, 207, 142, 0.25);
+}
+
+.accordion-step[data-step-state="active"] .accordion-step__header {
+  background: rgba(62, 207, 142, 0.04);
+}
+
+.accordion-step[data-step-state="active"] .accordion-step__number {
+  background: var(--brand-accent);
+  color: #000;
+  border-color: var(--brand-accent);
+}
+
+.accordion-step[data-step-state="active"] .accordion-step__label {
+  color: var(--text-base);
+}
+
+.accordion-step[data-step-state="active"] .accordion-step__status {
+  color: var(--brand-accent);
+}
+
+.accordion-step[data-step-state="active"] .accordion-step__body {
+  display: block;
+}
+
+.accordion-step[data-step-state="active"] .accordion-step__chevron {
+  transform: rotate(180deg);
+}
+
+/* Estado: concluído */
+.accordion-step[data-step-state="done"] .accordion-step__number {
+  background: rgba(62, 207, 142, 0.15);
+  color: var(--brand-accent);
+  border-color: rgba(62, 207, 142, 0.3);
+}
+
+.accordion-step[data-step-state="done"] .accordion-step__label {
+  color: var(--text-base);
+}
+
+.accordion-step[data-step-state="done"] .accordion-step__status {
+  color: var(--brand-accent);
+}
+
+/* Passo concluído expandido (ao clicar para revisar) */
+.accordion-step[data-step-state="done"].is-open .accordion-step__body {
+  display: block;
+}
+
+.accordion-step[data-step-state="done"].is-open .accordion-step__chevron {
+  transform: rotate(180deg);
+}
+
+/* Estado: bloqueado */
+.accordion-step[data-step-state="blocked"] .accordion-step__header {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* ── Compact Stats Strip ────────────────────────────────────────── */
+.stats-strip-top {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .stats-strip-top__item,
+  .progress-strip {
+    flex: 1 1 45%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+}
+
+.stats-strip-top__item {
+  flex: 1;
+  padding: 10px 16px;
+  border-right: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.stats-strip-top__item:last-child {
+  border-right: none;
+}
+
+.stats-strip-top__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-subdued);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stats-strip-top__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-base);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* ── Progress bar dentro da strip ───────────────────────────────── */
+.progress-strip {
+  flex: 2;
+  padding: 10px 16px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.progress-strip__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.progress-strip__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-subdued);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
