@@ -805,7 +805,18 @@
   }
 
   function getPrimaryAction(uiState, currentStats) {
-    if (uiState === 'draft') return { key: 'dryRun', label: actionLabels.dryRun, description: 'Valide a base antes de qualquer disparo.' };
+    if (uiState === 'draft') {
+      const hasContacts = Number(currentStats.total || 0) > 0;
+      if (!hasContacts) {
+        return {
+          key: 'dryRun',
+          label: actionLabels.dryRun,
+          description: 'Prepare a mensagem (passo 2), importe e valide os contatos (passos 3 e 4) para liberar a simulacao.',
+          disabled: true,
+        };
+      }
+      return { key: 'dryRun', label: actionLabels.dryRun, description: 'Contatos prontos. Execute a simulacao para validar a base antes do envio.' };
+    }
     if (uiState === 'ready-awaiting-test') {
       return { key: 'testRun', label: actionLabels.testRun, description: 'Use uma amostra para confirmar mensagem, numero e entrega.' };
     }
@@ -1286,6 +1297,7 @@
     if (primaryRule) primaryRule.textContent = 'A tela mostra apenas a proxima acao dominante.';
     actionInsightText.textContent = getNarrativeStatus(uiState, currentStats, bridgeState);
     primaryButton.textContent = primary.label;
+    primaryButton.disabled = !!primary.disabled;
 
     secondaryActions.innerHTML = '';
     getSecondaryActionConfigs(uiState, currentStats).forEach((action) => {
