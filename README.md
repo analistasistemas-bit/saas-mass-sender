@@ -162,6 +162,26 @@ Formato legado tambem suportado:
 2,"RWC WERI CONFECCAO","5581984299667",""
 ```
 
+## Envio de arquivo
+
+Um arquivo por chamada. Sem campanha e sem alteração de sessão.
+
+- `POST /bridge/send-media` — cookie `mass_sender_admin`, `multipart/form-data` (`phone`, `file`, `caption` opcional)
+- `POST /messages/send-media` no wa-bridge — header `x-api-key`, JSON com `phone`, `filename`, `mimetype`, `data` (base64) e `caption` opcional
+
+Limites:
+
+- FastAPI recusa acima de 10 MB. Tipos: `application/pdf`, `image/jpeg`, `image/png` e DOCX.
+- `POST /messages/send-media` aceita JSON de até 16mb (base64 de um arquivo de 10 MB). As outras rotas, inclusive `send-text`, continuam em 1mb. Nenhuma variável de ambiente nova.
+
+```bash
+curl -X POST http://127.0.0.1:8000/bridge/send-media \
+  -b 'mass_sender_admin=SENHA' \
+  -F 'phone=+5581999999999' \
+  -F 'caption=Segue o documento' \
+  -F 'file=@/caminho/boleto.pdf;type=application/pdf'
+```
+
 ## Testes
 
 ```bash
@@ -179,5 +199,5 @@ Detalhes da resolucao do ambiente de testes:
 - Sem Redis/Celery e sem WebSocket.
 - O frontend operacional atual foi redesenhado para uso local e cobre o fluxo de ponta a ponta.
 - Se o backend de envio falhar, o sistema preserva estado e tenta retry quando aplicável.
-- O bridge Node mantém sessão local do WhatsApp Web e expõe apenas `/health`, `/session/qr`, `/session/restart` e `/messages/send-text`.
+- O bridge Node mantém sessão local do WhatsApp Web e expõe `/health`, `/session`, `/session/qr`, `/session/restart`, `/session/reset`, `/messages/send-text`, `/messages/send-media` e `/numbers/resolve`.
 # saas-mass-sender

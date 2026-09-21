@@ -3,17 +3,29 @@ const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const QRCode = require('qrcode');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const { loadEnvFile } = require('./lib/env-loader');
 const { isBrowserAlreadyRunningError, extractProfileOwnerPid, releaseSessionBrowserLock } = require('./lib/process-guard');
 const { shouldForwardInboundMessage, buildInboundPayload, publishInboundWebhook } = require('./lib/inbound-webhook');
 const { resolveChatIdForPhone } = require('./lib/recipient-resolver');
+const { JSON_BODY_LIMIT, prepareSendMedia } = require('./lib/send-media');
 
 loadEnvFile(path.resolve(__dirname, '.env'));
 loadEnvFile(path.resolve(__dirname, '../.env'));
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+const jsonDefault = express.json({ limit: '1mb' });
+// 16mb covers base64 of a 10MB file (~13.4MB) plus the JSON envelope.
+// Only /messages/send-media uses it. send-text stays on the 1mb parser.
+// The route still rejects decoded media above 10MB. Nginx in production allows ~20M.
+const jsonMedia = express.json({ limit: JSON_BODY_LIMIT });
+app.use((req, res, next) => {
+  if (req.path === '/messages/send-media') {
+    jsonMedia(req, res, next);
+    return;
+  }
+  jsonDefault(req, res, next);
+});
 
 function assertSupportedNodeVersion() {
   const [major] = process.versions.node.split('.').map((part) => Number(part));
@@ -454,6 +466,36 @@ app.post('/messages/send-text', authMiddleware, async (req, res) => {
     await client.sendMessage(chatId, text);
     state.lastError = null; // Limpa erro se o envio funcionou
     res.json({ ok: true, chatId });
+  } catch (error) {
+    state.lastError = String(error && error.message ? error.message : error);
+    const statusCode = Number(error && error.statusCode ? error.statusCode : 502);
+    res.status(statusCode).json({ ok: false, message: state.lastError, state: state.state });
+  }
+});
+
+app.post('/messages/send-media', authMiddleware, async (req, res) => {
+  let prepared;
+  try {
+    prepared = prepareSendMedia(req.body || {});
+  } catch (error) {
+    const statusCode = Number(error && error.statusCode ? error.statusCode : 400);
+    res.status(statusCode).json({ ok: false, message: String(error && error.message ? error.message : error) });
+    return;
+  }
+
+  if (!state.connected) {
+    res.status(409).json({ ok: false, message: 'whatsapp session not connected', state: state.state });
+    return;
+  }
+
+  try {
+    const client = await getClient();
+    const chatId = await resolveChatIdForPhone(client, prepared.phone);
+    const media = new MessageMedia(prepared.mimetype, prepared.data, prepared.filename, prepared.filesize);
+    const options = prepared.caption ? { caption: prepared.caption } : {};
+    await client.sendMessage(chatId, media, options);
+    state.lastError = null;
+    res.json({ ok: true, chatId, filename: prepared.filename, mimetype: prepared.mimetype });
   } catch (error) {
     state.lastError = String(error && error.message ? error.message : error);
     const statusCode = Number(error && error.statusCode ? error.statusCode : 502);
