@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import os
 import shutil
 from pathlib import Path
@@ -15,6 +16,90 @@ class WhatsAppError(Exception):
         super().__init__(message)
         self.http_status = http_status
         self.error_class = error_class
+
+
+MAX_BRIDGE_MEDIA_BYTES = 10 * 1024 * 1024
+MAX_BRIDGE_MEDIA_CAPTION = 1024
+
+ALLOWED_BRIDGE_MEDIA_TYPES = {
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
+_EXTENSION_TO_MEDIA_TYPE = {
+    '.pdf': 'application/pdf',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
+_DEFAULT_MEDIA_FILENAME = {
+    'application/pdf': 'documento.pdf',
+    'image/jpeg': 'imagem.jpg',
+    'image/png': 'imagem.png',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'documento.docx',
+}
+
+
+class MediaUploadError(Exception):
+    def __init__(self, message: str, status_code: int = 400):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def _normalize_media_type(content_type: str | None, filename: str | None) -> str:
+    raw = (content_type or '').split(';', 1)[0].strip().lower()
+    if raw in {'image/jpg', 'image/pjpeg'}:
+        raw = 'image/jpeg'
+    if raw in ALLOWED_BRIDGE_MEDIA_TYPES:
+        return raw
+    suffix = Path(filename or '').suffix.lower()
+    if raw in {'', 'application/octet-stream'} and suffix in _EXTENSION_TO_MEDIA_TYPE:
+        return _EXTENSION_TO_MEDIA_TYPE[suffix]
+    return ''
+
+
+def _safe_media_filename(filename: str | None, mimetype: str) -> str:
+    raw = (filename or '').replace('\\', '/').split('/')[-1].strip()
+    if raw in {'', '.', '..'}:
+        return _DEFAULT_MEDIA_FILENAME[mimetype]
+    if any(ord(char) < 32 or ord(char) == 127 for char in raw):
+        raise MediaUploadError('Nome de arquivo inválido.')
+    if len(raw) > 180:
+        raise MediaUploadError('Nome de arquivo muito longo.')
+    return raw
+
+
+def _media_matches_type(mimetype: str, content: bytes) -> bool:
+    if mimetype == 'application/pdf':
+        return content.startswith(b'%PDF-')
+    if mimetype == 'image/jpeg':
+        return content.startswith(b'\xff\xd8\xff')
+    if mimetype == 'image/png':
+        return content.startswith(b'\x89PNG\r\n\x1a\n')
+    if mimetype == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        return content.startswith(b'PK\x03\x04')
+    return False
+
+
+def prepare_bridge_media_upload(*, filename: str | None, content_type: str | None, content: bytes) -> dict[str, str]:
+    if not content:
+        raise MediaUploadError('Arquivo vazio.')
+    if len(content) > MAX_BRIDGE_MEDIA_BYTES:
+        raise MediaUploadError('Arquivo acima do limite de 10 MB.', 413)
+    mimetype = _normalize_media_type(content_type, filename)
+    if not mimetype:
+        raise MediaUploadError('Tipo de arquivo não suportado. Use PDF, JPEG, PNG ou DOCX.')
+    if not _media_matches_type(mimetype, content):
+        raise MediaUploadError('O conteúdo do arquivo não corresponde ao tipo informado.')
+    return {
+        'mimetype': mimetype,
+        'filename': _safe_media_filename(filename, mimetype),
+        'data': base64.b64encode(content).decode('ascii'),
+    }
 
 
 def is_bridge_session_error_message(message: str | None) -> bool:
@@ -151,6 +236,51 @@ class WhatsAppClient:
             message = response.text[:500]
             err_class = 'session' if self.provider == 'bridge' and is_bridge_session_error_message(message) else classify_http_error(response.status_code)
             raise WhatsAppError(message, http_status=response.status_code, error_class=err_class)
+
+    async def send_media(self, phone_e164: str, *, data_base64: str, mimetype: str, filename: str, caption: str = '') -> dict:
+        if self.provider != 'bridge':
+            raise WhatsAppError('Envio de mídia disponível apenas para provider bridge', error_class='permanent')
+        if not self.configured:
+            raise WhatsAppError('Bridge não configurado', error_class='temporary')
+
+        payload = {
+            'phone': phone_e164,
+            'mimetype': mimetype,
+            'filename': filename,
+            'data': data_base64,
+        }
+        if caption:
+            payload['caption'] = caption
+
+        url = f'{self.bridge_base_url}/messages/send-media'
+        try:
+            if self._transport:
+                async with httpx.AsyncClient(timeout=60, transport=self._transport) as temp_client:
+                    response = await temp_client.post(url, json=payload, headers=self._headers())
+            else:
+                client = self.get_shared_client()
+                response = await client.post(url, json=payload, headers=self._headers(), timeout=60)
+        except Exception as exc:
+            raise WhatsAppError(str(exc), error_class=classify_exception(exc)) from exc
+
+        if response.status_code >= 400:
+            message = response.text[:500]
+            try:
+                body = response.json()
+                if isinstance(body, dict) and body.get('message'):
+                    message = str(body['message'])[:500]
+            except Exception:
+                pass
+            err_class = 'session' if is_bridge_session_error_message(message) else classify_http_error(response.status_code)
+            raise WhatsAppError(message, http_status=response.status_code, error_class=err_class)
+
+        try:
+            parsed = response.json()
+        except Exception as exc:
+            raise WhatsAppError(f'Resposta inválida do bridge: {exc}', error_class='temporary') from exc
+        if not isinstance(parsed, dict):
+            raise WhatsAppError('Resposta inválida do bridge', error_class='temporary')
+        return parsed
 
     async def bridge_session(self) -> dict:
         return await self._bridge_request('GET', '/session')

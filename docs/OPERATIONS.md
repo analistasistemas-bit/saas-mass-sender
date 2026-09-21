@@ -128,6 +128,7 @@ Observações:
 - `DB_PATH` controla o SQLite local
 - `INBOUND_WEBHOOK_TOKEN` e `BACKEND_INBOUND_WEBHOOK_TOKEN` devem ter o mesmo valor
 - `HUMAN_HANDOFF_PHONE` define o número global que recebe os handoffs humanos
+- envio de arquivo: `POST /bridge/send-media` (até 10 MB; PDF, JPEG, PNG ou DOCX). Só `POST /messages/send-media` no wa-bridge aceita JSON de até 16mb, para o base64 desse arquivo. `send-text` continua em 1mb. Nenhuma env nova.
 
 ## Atendimento Inbound com IA
 
