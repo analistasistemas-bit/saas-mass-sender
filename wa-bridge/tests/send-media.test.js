@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { JSON_BODY_LIMIT, MAX_MEDIA_BYTES, prepareSendMedia } = require('../lib/send-media');
+const { JSON_BODY_LIMIT, MAX_MEDIA_BYTES, buildSendMediaOptions, prepareSendMedia } = require('../lib/send-media');
 
 function b64(bytes) {
   return Buffer.from(bytes).toString('base64');
@@ -21,6 +21,10 @@ test('prepareSendMedia accepts a pdf payload', () => {
   assert.equal(prepared.filename, 'boleto.pdf');
   assert.equal(prepared.mimetype, 'application/pdf');
   assert.equal(prepared.filesize, Buffer.from('%PDF-1.4 sample').length);
+  assert.deepEqual(buildSendMediaOptions(prepared), {
+    caption: 'boleto',
+    sendMediaAsDocument: true,
+  });
 });
 
 test('prepareSendMedia strips a data URL and accepts jpeg alias', () => {
@@ -35,22 +39,27 @@ test('prepareSendMedia strips a data URL and accepts jpeg alias', () => {
   assert.equal(prepared.mimetype, 'image/jpeg');
   assert.equal(prepared.caption, '');
   assert.equal(prepared.data, b64(raw));
+  assert.deepEqual(buildSendMediaOptions(prepared), {});
+  assert.equal(Object.hasOwn(buildSendMediaOptions({ ...prepared, caption: 'foto' }), 'sendMediaAsDocument'), false);
+  assert.deepEqual(buildSendMediaOptions({ ...prepared, caption: 'foto' }), { caption: 'foto' });
 });
 
 test('prepareSendMedia accepts png and docx signatures', () => {
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
   const docx = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14]);
 
-  assert.equal(prepareSendMedia({ phone: '1', filename: 'a.png', mimetype: 'image/png', data: b64(png) }).mimetype, 'image/png');
-  assert.equal(
-    prepareSendMedia({
-      phone: '1',
-      filename: 'a.docx',
-      mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      data: b64(docx),
-    }).mimetype,
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  );
+  const pngPrepared = prepareSendMedia({ phone: '1', filename: 'a.png', mimetype: 'image/png', data: b64(png) });
+  assert.equal(pngPrepared.mimetype, 'image/png');
+  assert.deepEqual(buildSendMediaOptions({ ...pngPrepared, caption: 'img' }), { caption: 'img' });
+
+  const docxPrepared = prepareSendMedia({
+    phone: '1',
+    filename: 'a.docx',
+    mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    data: b64(docx),
+  });
+  assert.equal(docxPrepared.mimetype, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  assert.deepEqual(buildSendMediaOptions(docxPrepared), { sendMediaAsDocument: true });
 });
 
 test('prepareSendMedia rejects missing fields, bad type, mismatched bytes, and oversize files', () => {
@@ -73,6 +82,24 @@ test('prepareSendMedia rejects missing fields, bad type, mismatched bytes, and o
     message: 'media exceeds 10MB limit',
     statusCode: 413,
   });
+});
+
+test('send-media options omit quote, filename, and filesize fields', () => {
+  const options = buildSendMediaOptions({
+    mimetype: 'application/pdf',
+    caption: 'teste Mass Sender send-media',
+    filename: 'nota.pdf',
+    filesize: 555,
+    data: 'AAAA',
+  });
+
+  assert.deepEqual(options, {
+    caption: 'teste Mass Sender send-media',
+    sendMediaAsDocument: true,
+  });
+  assert.equal(Object.hasOwn(options, 'quotedMessageId'), false);
+  assert.equal(Object.hasOwn(options, 'filename'), false);
+  assert.equal(Object.hasOwn(options, 'filesize'), false);
 });
 
 test('json body limit fits a 10MB file after base64', () => {

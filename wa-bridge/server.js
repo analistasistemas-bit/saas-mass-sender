@@ -3,6 +3,10 @@ const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const QRCode = require('qrcode');
+const { installWhatsappWebJsMediaSendPatch } = require('./lib/patch-wwebjs-media-send');
+
+installWhatsappWebJsMediaSendPatch();
+
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const puppeteer = require('puppeteer');
 const { buildPuppeteerLaunchOptions } = require('./lib/browser-launch');
@@ -10,7 +14,7 @@ const { loadEnvFile } = require('./lib/env-loader');
 const { isBrowserAlreadyRunningError, extractProfileOwnerPid, releaseSessionBrowserLock } = require('./lib/process-guard');
 const { shouldForwardInboundMessage, buildInboundPayload, publishInboundWebhook } = require('./lib/inbound-webhook');
 const { resolveChatIdForPhone } = require('./lib/recipient-resolver');
-const { JSON_BODY_LIMIT, prepareSendMedia } = require('./lib/send-media');
+const { JSON_BODY_LIMIT, buildSendMediaOptions, prepareSendMedia } = require('./lib/send-media');
 
 loadEnvFile(path.resolve(__dirname, '.env'));
 loadEnvFile(path.resolve(__dirname, '../.env'));
@@ -491,7 +495,7 @@ app.post('/messages/send-media', authMiddleware, async (req, res) => {
     const client = await getClient();
     const chatId = await resolveChatIdForPhone(client, prepared.phone);
     const media = new MessageMedia(prepared.mimetype, prepared.data, prepared.filename, prepared.filesize);
-    const options = prepared.caption ? { caption: prepared.caption } : {};
+    const options = buildSendMediaOptions(prepared);
     await client.sendMessage(chatId, media, options);
     state.lastError = null;
     res.json({ ok: true, chatId, filename: prepared.filename, mimetype: prepared.mimetype });

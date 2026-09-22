@@ -105,10 +105,28 @@ function prepareSendMedia(body) {
   };
 }
 
+const DOCUMENT_MIMETYPES = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+function buildSendMediaOptions(prepared) {
+  const source = prepared && typeof prepared === 'object' ? prepared : {};
+  const options = {};
+  if (source.caption) {
+    options.caption = source.caption;
+  }
+  if (DOCUMENT_MIMETYPES.has(source.mimetype)) {
+    options.sendMediaAsDocument = true;
+  }
+  return options;
+}
+
 module.exports = {
   ALLOWED_MIMETYPES,
   JSON_BODY_LIMIT,
   MAX_CAPTION_LENGTH,
   MAX_MEDIA_BYTES,
+  buildSendMediaOptions,
   prepareSendMedia,
 };
