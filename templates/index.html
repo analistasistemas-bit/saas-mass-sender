@@ -38,6 +38,7 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="min-h-screen bg-shell text-ink">
+    {% include '_brand_masthead.html' %}
     <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8" data-ops-page="index">
 
       {% set STATUS_PT = {'draft': 'Rascunho', 'ready': 'Pronta', 'running': 'Em envio', 'paused': 'Pausada', 'completed': 'Concluída', 'cancelled': 'Cancelada'} %}

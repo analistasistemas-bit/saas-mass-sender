@@ -38,6 +38,7 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="min-h-screen bg-shell text-ink">
+    {% include '_brand_masthead.html' %}
     {% set STATUS_PT = {'draft': 'Rascunho', 'ready': 'Pronta', 'running': 'Em envio', 'paused': 'Pausada', 'completed': 'Concluída', 'cancelled': 'Cancelada'} %}
     {% set CONTACT_PT = {'pending': 'Pendente', 'processing': 'Processando', 'sent': 'Enviado', 'failed': 'Falha', 'invalid': 'Inválido'} %}
     <main
