@@ -6,15 +6,18 @@ services:
     environment:
       # Dentro do container a bridge ouve em todas as interfaces da rede Docker interna
       - WA_BRIDGE_HOST=0.0.0.0
+      # Empty on purpose: a leftover WA_EXECUTABLE_PATH=/usr/bin/chromium in .env
+      # selects Debian Chromium and stalls after authenticated. Bundled Chrome is the default.
+      - WA_EXECUTABLE_PATH=
     volumes:
       # Sessao do WhatsApp persiste aqui — NAO apagar entre deploys
       - wa_sessions:/app/.wwebjs_auth
     networks:
       - internal
-    # Chromium precisa de memoria compartilhada suficiente
+    # Chrome do Puppeteer precisa de memoria compartilhada suficiente
     shm_size: 1gb
     security_opt:
-      # Necessario para Chromium headless funcionar dentro de container
+      # Necessario para o Chrome headless funcionar dentro de container
       - seccomp=unconfined
 
   app:

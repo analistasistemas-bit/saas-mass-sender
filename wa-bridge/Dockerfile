@@ -1,34 +1,31 @@
 FROM node:20-slim
 
-# Instala Chromium e todas as dependencias necessarias para o Puppeteer rodar em container
-RUN apt-get update && apt-get install -y \
-    chromium \
-    fonts-noto-color-emoji \
+# Shared libraries for Puppeteer's bundled Chrome. Do not install Debian
+# chromium: that build is not the Chrome revision Puppeteer/whatsapp-web.js
+# was tested with, and it stalls after `authenticated` without `ready`.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     fonts-liberation \
-    libgbm1 \
-    libasound2 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxss1 \
-    libgtk-3-0 \
-    --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+    fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Instala dependencias Node sem baixar o Chromium do Puppeteer (usa o do sistema)
-COPY package*.json ./
-RUN PUPPETEER_SKIP_DOWNLOAD=true npm install --omit=dev
+COPY package.json package-lock.json ./
+# Downloads the Chrome build pinned by puppeteer (via whatsapp-web.js).
+# Do not set PUPPETEER_SKIP_DOWNLOAD or PUPPETEER_EXECUTABLE_PATH.
+RUN npm ci --omit=dev \
+    && apt-get update \
+    && npx puppeteer browsers install chrome --install-deps \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY . .
 
-# Aponta para o Chromium do sistema
-ENV WA_EXECUTABLE_PATH=/usr/bin/chromium
+# Safe default: puppeteer.executablePath() inside server.js.
+# Set WA_EXECUTABLE_PATH only to a Puppeteer-compatible Chrome binary.
+# /usr/bin/chromium is not a supported default.
 ENV WA_HEADLESS=true
-# Dentro do container Docker, ouve em todas as interfaces da rede interna
+# Inside Docker, listen on the internal network.
 ENV WA_BRIDGE_HOST=0.0.0.0
 
 CMD ["node", "server.js"]

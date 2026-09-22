@@ -4,6 +4,8 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const QRCode = require('qrcode');
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const puppeteer = require('puppeteer');
+const { buildPuppeteerLaunchOptions } = require('./lib/browser-launch');
 const { loadEnvFile } = require('./lib/env-loader');
 const { isBrowserAlreadyRunningError, extractProfileOwnerPid, releaseSessionBrowserLock } = require('./lib/process-guard');
 const { shouldForwardInboundMessage, buildInboundPayload, publishInboundWebhook } = require('./lib/inbound-webhook');
@@ -45,8 +47,6 @@ const apiKey = process.env.WA_BRIDGE_API_KEY || '';
 const sessionName = process.env.WA_SESSION_NAME || 'mass-sender';
 const dataPath = path.resolve(process.env.WA_DATA_PATH || '.wwebjs_auth');
 const userDataDir = path.resolve(dataPath, `session-${sessionName}`);
-const headless = process.env.WA_HEADLESS !== 'false';
-const executablePath = process.env.WA_EXECUTABLE_PATH || '';
 const inboundWebhookUrl = process.env.BACKEND_INBOUND_WEBHOOK_URL || '';
 const inboundWebhookToken = process.env.BACKEND_INBOUND_WEBHOOK_TOKEN || '';
 
@@ -96,34 +96,33 @@ function normalizePhone(phone) {
 }
 
 async function buildClient(options = {}) {
-  const puppeteer = {
-    headless,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--metrics-recording-only',
-      '--no-first-run',
-      '--safebrowsing-disable-auto-update',
-      '--single-process',
-      '--js-flags=--max-old-space-size=256',
-    ],
-  };
-  if (executablePath) {
-    puppeteer.executablePath = executablePath;
+  const executableOverride = String(process.env.WA_EXECUTABLE_PATH || '').trim();
+  const launch = buildPuppeteerLaunchOptions({
+    headlessEnv: process.env.WA_HEADLESS,
+    executableOverride,
+    bundledExecutable: executableOverride ? '' : puppeteer.executablePath(),
+  });
+  if (launch.distroChromium) {
+    console.warn(
+      '[wa-bridge] WA_EXECUTABLE_PATH points at distro Chromium. ' +
+        'That build stalls after authenticated and never emits ready. ' +
+        'Unset WA_EXECUTABLE_PATH to use Puppeteer bundled Chrome.'
+    );
   }
 
-  track('client_building', { headless, executablePath: executablePath || 'bundled' });
+  track('client_building', {
+    headless: launch.headless,
+    executablePath: launch.executablePath,
+    browserSource: launch.browserSource,
+  });
 
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: sessionName, dataPath }),
-    puppeteer,
+    puppeteer: {
+      headless: launch.headless,
+      executablePath: launch.executablePath,
+      args: launch.args,
+    },
   });
 
   client.on('qr', async (qr) => {

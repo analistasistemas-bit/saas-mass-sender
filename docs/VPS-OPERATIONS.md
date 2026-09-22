@@ -25,7 +25,7 @@ Nginx (host) — /etc/nginx/sites-available/mass-sender
     ↓ proxy para 127.0.0.1:8000
 Docker container: app (FastAPI/Uvicorn)
     ↓ rede interna Docker (http://wa-bridge:3010)
-Docker container: wa-bridge (Node.js + Chromium)
+Docker container: wa-bridge (Node.js + Puppeteer Chrome)
 ```
 
 ---
@@ -360,7 +360,8 @@ docker compose restart
 | `WA_BRIDGE_API_KEY` | Chave de autenticação entre app e wa-bridge |
 | `WA_BRIDGE_PORT` | `3010` |
 | `WA_SESSION_NAME` | Nome da sessão WhatsApp |
-| `WA_HEADLESS` | `true` (Chromium sem interface gráfica) |
+| `WA_HEADLESS` | `true` (Chrome headless atual do Puppeteer 24) |
+| `WA_EXECUTABLE_PATH` | vazio em produção. O compose zera isso. Não apontar para `/usr/bin/chromium` |
 
 ---
 
@@ -395,6 +396,8 @@ docker compose exec app curl http://wa-bridge:3010/session
 # Reiniciar o wa-bridge:
 docker compose restart wa-bridge
 ```
+
+`state: authenticated` com `connected: false` e `phone: null` não é sessão corrompida. Não apague `wa_sessions` em loop. No log, `client_building` precisa mostrar `browserSource: puppeteer-bundled`. Chromium da distro (`/usr/bin/chromium`) ou `--single-process` impede o evento `ready`. O padrão seguro é `WA_EXECUTABLE_PATH` vazio (o compose já força isso).
 
 ### Deploy falhou
 
