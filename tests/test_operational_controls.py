@@ -91,8 +91,8 @@ def test_update_campaign_operational_settings_persists_values_and_stats_payload_
     assert payload['send_window_start'] == '08:00'
     assert payload['send_window_end'] == '20:00'
     assert payload['performance']['warming_up'] is True
-    assert payload['estimates']['configured_batch_pause_min'] == 5
-    assert payload['estimates']['configured_batch_pause_max'] == 10
+    assert payload['estimates']['configured_batch_pause_min'] == 25
+    assert payload['estimates']['configured_batch_pause_max'] == 40
 
 
 def test_update_campaign_operational_settings_persists_send_window():

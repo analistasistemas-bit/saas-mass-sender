@@ -1,18 +1,20 @@
 :root {
-  /* SaaS Neutral Dark */
-  --bg-base: #0a0a0a;
-  --bg-surface: #111111;
-  --bg-elevated: #1c1c1c;
-  --bg-press: #161616;
-  --brand-accent: #3ecf8e;
-  --brand-accent-hover: #2db87a;
+  --bg-base: #0B1112;
+  --bg-surface: #121B1D;
+  --bg-elevated: #182527;
+  --bg-press: #10191B;
+  --brand-signal: #2BCAC2;
+  --brand-accent: var(--brand-signal);
+  --brand-accent-hover: #62DED7;
+  --semantic-success: #C5FF64;
+  --font-display: 'Manrope', 'Inter', system-ui, sans-serif;
 
-  --text-base: #ededed;
-  --text-subdued: #949494;
+  --text-base: #EEF8F7;
+  --text-subdued: #91A5A6;
   --text-bright: #ffffff;
 
-  --semantic-negative: #f3727f;
-  --semantic-warning: #ffa42b;
+  --semantic-negative: #FF7F8A;
+  --semantic-warning: #F4BD63;
   --semantic-announcement: #539df5;
 
   --border-subtle: #262626;
@@ -36,6 +38,36 @@ body {
   margin: 0;
   overflow-x: clip;
 }
+
+body.login-bg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100vh;
+  gap: 24px;
+  padding: 48px 16px;
+}
+body.login-bg > * { max-width: 100%; min-width: 0; }
+body.login-bg .brand-masthead__lockup { max-width: calc(100vw - 2rem); }
+body.login-bg main { width: 100%; max-width: 420px; margin: 0 auto; padding: 0; }
+body.login-bg .login-card { width: 100%; padding: 32px; }
+
+.brand-masthead { min-height: 92px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-subtle); }
+.brand-masthead__lockup { display: inline-flex; align-items: center; gap: .75rem; color: var(--text-subdued); font-size: .75rem; letter-spacing: .18em; }
+.brand-masthead__lockup img { width: clamp(112px, 35vw, 220px); height: 44px; object-fit: contain; }
+.brand-masthead__divider { height: 24px; border-left: 1px solid var(--border-strong); }
+.brand-product-lockup { display: inline-flex; align-items: center; gap: .75rem; }
+.brand-product-lockup img { width: 124px; height: 40px; object-fit: contain; }
+.brand-product-lockup h2 { font-family: var(--font-display); font-weight: 700; }
+.brand-logo-fallback { color: var(--text-base); font-weight: 700; }
+
+/* Grid cards must be allowed to shrink below their content width on narrow screens. */
+.grid > article { min-width: 0; }
+
+@media (max-width: 640px) { .brand-masthead { min-height: 76px; } }
+
+h1, h2, h3 { font-family: var(--font-display); }
 
 html.is-link-loading,
 html.is-link-loading * {

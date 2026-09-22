@@ -6,7 +6,8 @@
     <title>{{ campaign.name }} - Mass Sender</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" href="/static/favicon.ico" sizes="any" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -38,6 +39,7 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="min-h-screen bg-shell text-ink">
+    {% include '_brand_masthead.html' %}
     {% set STATUS_PT = {'draft': 'Rascunho', 'ready': 'Pronta', 'running': 'Em envio', 'paused': 'Pausada', 'completed': 'Concluída', 'cancelled': 'Cancelada'} %}
     {% set CONTACT_PT = {'pending': 'Pendente', 'processing': 'Processando', 'sent': 'Enviado', 'failed': 'Falha', 'invalid': 'Inválido'} %}
     <main

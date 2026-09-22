@@ -6,7 +6,8 @@
     <title>Login - Mass Sender</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" href="/static/favicon.ico" sizes="any" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -62,15 +63,13 @@
     </style>
   </head>
   <body class="login-bg flex min-h-screen items-center justify-center text-ink">
+    {% include '_brand_masthead.html' %}
     <main class="w-full max-w-xs px-4">
       <div class="login-card p-8">
 
-        <div class="flex items-center gap-3 mb-8">
-          <div class="login-monogram">MS</div>
-          <div>
-            <p class="text-base font-semibold text-ink leading-tight">Mass Sender</p>
-            <p class="text-xs text-muted leading-tight mt-0.5">Painel de envios</p>
-          </div>
+        <div class="brand-product-lockup" data-testid="mass-sender-product-mark" style="display:flex;align-items:center;justify-content:center;width:100%;height:48px;margin-bottom:24px;">
+          <h2 class="sr-only">Mass Sender</h2>
+          <img src="/static/brand/mass-sender-cofre-horizontal.svg" alt="Mass Sender" style="display:block;width:180px;height:40px;object-fit:contain;" />
         </div>
 
         <div class="mb-6">
