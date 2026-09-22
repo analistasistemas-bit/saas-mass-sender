@@ -59,9 +59,10 @@ Transformar o Mass Sender em um SaaS de controle premium, escuro, técnico e con
 
 ### Daludi
 
-- SVG oficial fornecido pela Daludi, sem reconstrução.
-- PNG transparente de apoio em 512px e 2048px.
-- Lockup institucional `DALUDI | INNOVIT CONSULT` aprovado a partir do arquivo oficial e da tipografia correta.
+- PNG oficial transparente fornecido pela Daludi (`1536×1024`), sem reconstrução.
+- Exportações recortadas e otimizadas desse PNG para uso em app, post e story; não ampliar acima da resolução nativa.
+- Lockup institucional `DALUDI | INNOVIT CONSULT` aprovado a partir desse arquivo oficial e da tipografia correta.
+- SVG oficial continua recomendado para impressão e ampliações futuras, mas não bloqueia esta etapa.
 
 ### Marketing e social
 
@@ -70,9 +71,9 @@ Transformar o Mass Sender em um SaaS de controle premium, escuro, técnico e con
 - Templates para post 1080×1080, story 1080×1920 e banner 1200×628.
 - Todos os templates devem usar os mesmos tokens, tipografia e margens de proteção.
 
-## Dependência externa antes da produção final
+## Ativo oficial fornecido
 
-O proprietário deve fornecer o arquivo oficial da Daludi, preferencialmente SVG. A imagem enviada nesta conversa é referência visual e não deve ser usada como ativo final.
+O proprietário forneceu a logo oficial da Daludi em PNG transparente (`1536×1024`). Ela é a fonte aprovada para a implementação inicial e para peças digitais até 1080px. O arquivo deve ser mantido sem alteração de símbolo, cor ou proporção.
 
 ## Critérios de aceitação
 
