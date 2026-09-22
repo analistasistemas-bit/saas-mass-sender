@@ -128,6 +128,7 @@ Observações:
 - `DB_PATH` controla o SQLite local
 - `INBOUND_WEBHOOK_TOKEN` e `BACKEND_INBOUND_WEBHOOK_TOKEN` devem ter o mesmo valor
 - `HUMAN_HANDOFF_PHONE` define o número global que recebe os handoffs humanos
+- envio de arquivo: `POST /bridge/send-media` (até 10 MB; PDF, JPEG, PNG ou DOCX). Só `POST /messages/send-media` no wa-bridge aceita JSON de até 16mb, para o base64 desse arquivo. `send-text` continua em 1mb. Nenhuma env nova.
 
 ## Atendimento Inbound com IA
 
@@ -243,6 +244,18 @@ Estado esperado após conectar:
 
 - `connected: true`
 - `state: "ready"`
+
+### Autenticou e não ficou `ready`
+
+Sintoma: `connected: false`, `state: "authenticated"`, `phone: null`, depois do QR. Apagar `.wwebjs_auth` / o volume `wa_sessions` não corrige isso. Não fique resetando a sessão.
+
+Confira o Chrome que o bridge realmente abriu (`client_building` no log):
+
+1. `browserSource` deve ser `puppeteer-bundled`. `WA_EXECUTABLE_PATH=/usr/bin/chromium` (Chromium da distro) trava o handshake do `ready`.
+2. Os args não podem incluir `--single-process` nem `--js-flags=--max-old-space-size=256`.
+3. `headless` deve ser `true` (headless atual do Puppeteer 24). `WA_HEADLESS=false` só para debug com janela.
+
+O padrão seguro é deixar `WA_EXECUTABLE_PATH` vazio. O `docker-compose.yml` já zera essa variável para o container não herdar um Chromium antigo do `.env`.
 
 ## Healthchecks
 

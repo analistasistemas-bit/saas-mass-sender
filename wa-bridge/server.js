@@ -3,17 +3,35 @@ const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const QRCode = require('qrcode');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { installWhatsappWebJsMediaSendPatch } = require('./lib/patch-wwebjs-media-send');
+
+installWhatsappWebJsMediaSendPatch();
+
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const puppeteer = require('puppeteer');
+const { buildPuppeteerLaunchOptions } = require('./lib/browser-launch');
 const { loadEnvFile } = require('./lib/env-loader');
 const { isBrowserAlreadyRunningError, extractProfileOwnerPid, releaseSessionBrowserLock } = require('./lib/process-guard');
 const { shouldForwardInboundMessage, buildInboundPayload, publishInboundWebhook } = require('./lib/inbound-webhook');
 const { resolveChatIdForPhone } = require('./lib/recipient-resolver');
+const { JSON_BODY_LIMIT, buildSendMediaOptions, prepareSendMedia } = require('./lib/send-media');
 
 loadEnvFile(path.resolve(__dirname, '.env'));
 loadEnvFile(path.resolve(__dirname, '../.env'));
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+const jsonDefault = express.json({ limit: '1mb' });
+// 16mb covers base64 of a 10MB file (~13.4MB) plus the JSON envelope.
+// Only /messages/send-media uses it. send-text stays on the 1mb parser.
+// The route still rejects decoded media above 10MB. Nginx in production allows ~20M.
+const jsonMedia = express.json({ limit: JSON_BODY_LIMIT });
+app.use((req, res, next) => {
+  if (req.path === '/messages/send-media') {
+    jsonMedia(req, res, next);
+    return;
+  }
+  jsonDefault(req, res, next);
+});
 
 function assertSupportedNodeVersion() {
   const [major] = process.versions.node.split('.').map((part) => Number(part));
@@ -33,8 +51,6 @@ const apiKey = process.env.WA_BRIDGE_API_KEY || '';
 const sessionName = process.env.WA_SESSION_NAME || 'mass-sender';
 const dataPath = path.resolve(process.env.WA_DATA_PATH || '.wwebjs_auth');
 const userDataDir = path.resolve(dataPath, `session-${sessionName}`);
-const headless = process.env.WA_HEADLESS !== 'false';
-const executablePath = process.env.WA_EXECUTABLE_PATH || '';
 const inboundWebhookUrl = process.env.BACKEND_INBOUND_WEBHOOK_URL || '';
 const inboundWebhookToken = process.env.BACKEND_INBOUND_WEBHOOK_TOKEN || '';
 
@@ -84,34 +100,33 @@ function normalizePhone(phone) {
 }
 
 async function buildClient(options = {}) {
-  const puppeteer = {
-    headless,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-default-apps',
-      '--disable-sync',
-      '--disable-translate',
-      '--metrics-recording-only',
-      '--no-first-run',
-      '--safebrowsing-disable-auto-update',
-      '--single-process',
-      '--js-flags=--max-old-space-size=256',
-    ],
-  };
-  if (executablePath) {
-    puppeteer.executablePath = executablePath;
+  const executableOverride = String(process.env.WA_EXECUTABLE_PATH || '').trim();
+  const launch = buildPuppeteerLaunchOptions({
+    headlessEnv: process.env.WA_HEADLESS,
+    executableOverride,
+    bundledExecutable: executableOverride ? '' : puppeteer.executablePath(),
+  });
+  if (launch.distroChromium) {
+    console.warn(
+      '[wa-bridge] WA_EXECUTABLE_PATH points at distro Chromium. ' +
+        'That build stalls after authenticated and never emits ready. ' +
+        'Unset WA_EXECUTABLE_PATH to use Puppeteer bundled Chrome.'
+    );
   }
 
-  track('client_building', { headless, executablePath: executablePath || 'bundled' });
+  track('client_building', {
+    headless: launch.headless,
+    executablePath: launch.executablePath,
+    browserSource: launch.browserSource,
+  });
 
   const client = new Client({
     authStrategy: new LocalAuth({ clientId: sessionName, dataPath }),
-    puppeteer,
+    puppeteer: {
+      headless: launch.headless,
+      executablePath: launch.executablePath,
+      args: launch.args,
+    },
   });
 
   client.on('qr', async (qr) => {
@@ -454,6 +469,36 @@ app.post('/messages/send-text', authMiddleware, async (req, res) => {
     await client.sendMessage(chatId, text);
     state.lastError = null; // Limpa erro se o envio funcionou
     res.json({ ok: true, chatId });
+  } catch (error) {
+    state.lastError = String(error && error.message ? error.message : error);
+    const statusCode = Number(error && error.statusCode ? error.statusCode : 502);
+    res.status(statusCode).json({ ok: false, message: state.lastError, state: state.state });
+  }
+});
+
+app.post('/messages/send-media', authMiddleware, async (req, res) => {
+  let prepared;
+  try {
+    prepared = prepareSendMedia(req.body || {});
+  } catch (error) {
+    const statusCode = Number(error && error.statusCode ? error.statusCode : 400);
+    res.status(statusCode).json({ ok: false, message: String(error && error.message ? error.message : error) });
+    return;
+  }
+
+  if (!state.connected) {
+    res.status(409).json({ ok: false, message: 'whatsapp session not connected', state: state.state });
+    return;
+  }
+
+  try {
+    const client = await getClient();
+    const chatId = await resolveChatIdForPhone(client, prepared.phone);
+    const media = new MessageMedia(prepared.mimetype, prepared.data, prepared.filename, prepared.filesize);
+    const options = buildSendMediaOptions(prepared);
+    await client.sendMessage(chatId, media, options);
+    state.lastError = null;
+    res.json({ ok: true, chatId, filename: prepared.filename, mimetype: prepared.mimetype });
   } catch (error) {
     state.lastError = String(error && error.message ? error.message : error);
     const statusCode = Number(error && error.statusCode ? error.statusCode : 502);

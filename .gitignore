@@ -33,6 +33,8 @@ dist/
 downloads/
 eggs/
 lib/
+!wa-bridge/lib/
+!wa-bridge/lib/**
 lib64/
 parts/
 sdist/

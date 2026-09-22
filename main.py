@@ -64,7 +64,14 @@ from services.openrouter_client import OpenRouterClient
 from services.conversation_service import close_conversation, reopen_ai, save_inbound_message
 from services.inbound_engine import InboundEngine
 from services.send_engine import SendEngine
-from services.whatsapp import WhatsAppClient, WhatsAppError
+from services.whatsapp import (
+    MAX_BRIDGE_MEDIA_BYTES,
+    MAX_BRIDGE_MEDIA_CAPTION,
+    MediaUploadError,
+    WhatsAppClient,
+    WhatsAppError,
+    prepare_bridge_media_upload,
+)
 from utils.config import load_app_env
 from utils.message_compose import render_test_run_message
 from utils.phone import normalize_br_phone
@@ -525,6 +532,61 @@ async def bridge_reset() -> JSONResponse:
         return JSONResponse({'ok': True, 'result': payload})
     except WhatsAppError as exc:
         return bridge_error_response(exc, 'reset')
+
+
+@app.post('/bridge/send-media', dependencies=[Depends(require_auth)])
+async def bridge_send_media(
+    phone: str = Form(..., description='Número do destinatário. Dígitos; + e máscara são aceitos.'),
+    file: UploadFile = File(..., description='PDF, JPEG, PNG ou DOCX de até 10 MB.'),
+    caption: str = Form('', description='Legenda opcional, até 1024 caracteres.'),
+) -> JSONResponse:
+    """Envia uma mensagem WhatsApp com um arquivo via wa-bridge. Não dispara campanha."""
+    client = WhatsAppClient()
+    if client.provider != 'bridge':
+        return JSONResponse({'ok': False, 'message': 'Provider ativo não é bridge'}, status_code=400)
+
+    phone_value = str(phone or '').strip()
+    if not any(char.isdigit() for char in phone_value):
+        return JSONResponse({'ok': False, 'message': 'Telefone é obrigatório.'}, status_code=400)
+
+    caption_value = str(caption or '').strip()
+    if len(caption_value) > MAX_BRIDGE_MEDIA_CAPTION:
+        return JSONResponse({'ok': False, 'message': 'Legenda acima de 1024 caracteres.'}, status_code=400)
+
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_BRIDGE_MEDIA_BYTES:
+            return JSONResponse({'ok': False, 'message': 'Arquivo acima do limite de 10 MB.'}, status_code=413)
+        chunks.append(chunk)
+
+    try:
+        prepared = prepare_bridge_media_upload(
+            filename=file.filename,
+            content_type=file.content_type,
+            content=b''.join(chunks),
+        )
+    except MediaUploadError as exc:
+        return JSONResponse({'ok': False, 'message': str(exc)}, status_code=exc.status_code)
+
+    try:
+        payload = await client.send_media(
+            phone_value,
+            data_base64=prepared['data'],
+            mimetype=prepared['mimetype'],
+            filename=prepared['filename'],
+            caption=caption_value,
+        )
+    except WhatsAppError as exc:
+        if exc.http_status and exc.http_status < 500:
+            return JSONResponse({'ok': False, 'message': str(exc)[:500]}, status_code=exc.http_status)
+        return bridge_error_response(exc, 'send-media')
+
+    return JSONResponse({'ok': True, 'result': payload})
 
 
 @app.get('/login', response_class=HTMLResponse)
