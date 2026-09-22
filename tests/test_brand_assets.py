@@ -59,3 +59,11 @@ def test_png_export_inventory_is_complete():
 def test_readme_links_to_brandbook():
     readme = Path("README.md").read_text(encoding="utf-8")
     assert "docs/BRANDBOOK.md" in readme
+
+
+def test_product_templates_expose_browser_favicon():
+    for template_name in ("login.html", "index.html", "campaign.html", "agent_settings.html"):
+        template = Path("templates") / template_name
+        contents = template.read_text(encoding="utf-8")
+        assert 'rel="icon"' in contents
+        assert "/static/brand/png/favicon-32.png" in contents
