@@ -1,0 +1,14 @@
+<header class="brand-masthead" data-testid="daludi-masthead" style="min-height:76px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #262626;">
+  <div class="brand-masthead__lockup" style="display:inline-flex;align-items:center;justify-content:center;gap:12px;max-width:calc(100vw - 32px);">
+    <img src="/static/brand/png/daludi-logo-digital.png" alt="Daludi" style="display:block;width:180px;height:44px;object-fit:contain;" onerror="this.hidden=true; this.nextElementSibling.hidden=false" />
+    <span class="brand-logo-fallback" hidden>DALUDI</span>
+    <span class="brand-masthead__divider" aria-hidden="true" style="height:24px;border-left:1px solid #404040;"></span>
+    <span style="font:600 12px/1 Inter,system-ui,sans-serif;letter-spacing:.14em;color:#91A5A6;white-space:nowrap;">INNOVIT CONSULT</span>
+  </div>
+</header>
+{% if request.url.path != '/login' %}
+<div class="brand-product-lockup" data-testid="mass-sender-product-mark" style="display:flex;align-items:center;width:calc(100% - 32px);max-width:1088px;height:48px;margin:12px auto 0;">
+  <h2 class="sr-only">Mass Sender</h2>
+  <img src="/static/brand/mass-sender-cofre-horizontal.svg" alt="Mass Sender" style="display:block;width:180px;height:40px;object-fit:contain;" />
+</div>
+{% endif %}

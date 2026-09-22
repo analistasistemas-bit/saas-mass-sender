@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 80" role="img" aria-labelledby="title">
+  <title id="title">Mass Sender</title>
+  <path fill="#EEF8F7" d="M8 16 24 0h32l16 16v32L56 64H24L8 48z"/>
+  <path fill="#0B1112" d="m28 8h24l12 12v24L52 56H28L16 44V20z"/>
+  <path fill="#EEF8F7" d="m35 20h10l7 7v10l-7 7H35l-7-7V27z"/>
+  <text x="92" y="34" fill="#EEF8F7" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-1">MASS</text>
+  <text x="92" y="62" fill="#EEF8F7" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="-1">SENDER</text>
+</svg>

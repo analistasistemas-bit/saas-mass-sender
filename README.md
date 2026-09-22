@@ -1,5 +1,9 @@
 # WhatsApp Campaign Sender (MVP)
 
+## Marca
+
+- [Brandbook do Mass Sender](docs/BRANDBOOK.md)
+
 MVP local para envio em massa via WhatsApp usando CSV, FastAPI, SQLite e backend de envio configuravel.
 O caminho principal de execução hoje é `FastAPI + wa-bridge (Node + whatsapp-web.js)`.
 O sistema já inclui um frontend operacional completo em `templates/` e `static/`, com fluxo guiado para conexão, validação, teste, envio e acompanhamento.

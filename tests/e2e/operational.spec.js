@@ -696,7 +696,7 @@ test('fluxo operacional guiado da home ate a conclusao', async ({ page }) => {
 
   await page.goto('/login');
   await expect(page.getByRole('heading', { name: 'Mass Sender' })).toBeVisible();
-  await page.getByPlaceholder('Senha').fill('admin123');
+  await page.getByLabel('Senha').fill('admin123');
   await page.getByRole('button', { name: 'Entrar' }).click();
 
   await expect(page.getByRole('heading', { name: 'Campanhas' })).toBeVisible();

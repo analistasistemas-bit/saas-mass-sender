@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Mass Sender Cofre</title>
+  <path fill="#0B1112" d="M16 0h32l16 16v32L48 64H16L0 48V16z"/>
+  <path fill="#FFFFFF" d="M20 8h24l12 12v24L44 56H20L8 44V20z"/>
+  <path fill="#0B1112" d="M27 20h10l7 7v10l-7 7H27l-7-7V27z"/>
+</svg>
