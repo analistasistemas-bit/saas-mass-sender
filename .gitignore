@@ -45,3 +45,4 @@ var/
 .claude/
 *.csv
 .venv-py39-backup-20260329-193256/
+.omx/

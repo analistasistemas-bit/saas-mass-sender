@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1776352920723,
+  "lastScanned": 1776628872024,
   "projectRoot": "/Users/diego/Desktop/IA/mass-sender-saas-vps",
   "techStack": {
     "languages": [
@@ -62,7 +62,7 @@
       "path": "__pycache__",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1776352920696,
+      "lastAccessed": 1776628871992,
       "keyFiles": [
         "database.cpython-311.pyc",
         "main.cpython-311.pyc",
@@ -74,21 +74,21 @@
       "path": "bugs",
       "purpose": null,
       "fileCount": 0,
-      "lastAccessed": 1776352920700,
+      "lastAccessed": 1776628872004,
       "keyFiles": []
     },
     "data": {
       "path": "data",
       "purpose": "Data files",
       "fileCount": 0,
-      "lastAccessed": 1776352920700,
+      "lastAccessed": 1776628872004,
       "keyFiles": []
     },
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 8,
-      "lastAccessed": 1776352920701,
+      "lastAccessed": 1776628872008,
       "keyFiles": [
         "DOSSIE_TECNICO_SISTEMA_ATUAL.md",
         "LEVANTAMENTO_TECNICO_SISTEMA_ATUAL.md",
@@ -101,7 +101,7 @@
       "path": "services",
       "purpose": "Business logic services",
       "fileCount": 14,
-      "lastAccessed": 1776352920701,
+      "lastAccessed": 1776628872012,
       "keyFiles": [
         "__init__.py",
         "agent_settings_service.py",
@@ -114,7 +114,7 @@
       "path": "static",
       "purpose": "Static files",
       "fileCount": 5,
-      "lastAccessed": 1776352920701,
+      "lastAccessed": 1776628872012,
       "keyFiles": [
         "agent-settings.js",
         "app.js",
@@ -127,7 +127,7 @@
       "path": "templates",
       "purpose": null,
       "fileCount": 4,
-      "lastAccessed": 1776352920702,
+      "lastAccessed": 1776628872013,
       "keyFiles": [
         "agent_settings.html",
         "campaign.html",
@@ -139,7 +139,7 @@
       "path": "test-results",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1776352920702,
+      "lastAccessed": 1776628872014,
       "keyFiles": [
         "simulator-chat-ui.png",
         "validate-handoff-message-2step.js",
@@ -152,7 +152,7 @@
       "path": "tests",
       "purpose": "Test files",
       "fileCount": 23,
-      "lastAccessed": 1776352920702,
+      "lastAccessed": 1776628872014,
       "keyFiles": [
         "test_agent_settings_service.py",
         "test_ai_agent.py",
@@ -165,7 +165,7 @@
       "path": "utils",
       "purpose": "Utility functions",
       "fileCount": 8,
-      "lastAccessed": 1776352920702,
+      "lastAccessed": 1776628872015,
       "keyFiles": [
         "__init__.py",
         "config.py",
@@ -177,21 +177,21 @@
     "wa-bridge": {
       "path": "wa-bridge",
       "purpose": null,
-      "fileCount": 5,
-      "lastAccessed": 1776352920703,
+      "fileCount": 6,
+      "lastAccessed": 1776628872015,
       "keyFiles": [
         "Dockerfile",
         "fetch-qr.js",
         "package-lock.json",
         "package.json",
-        "server.js"
+        "qr.png"
       ]
     },
     "tests/fixtures": {
       "path": "tests/fixtures",
       "purpose": "Test fixtures",
       "fileCount": 1,
-      "lastAccessed": 1776352920706,
+      "lastAccessed": 1776628872017,
       "keyFiles": [
         "contatos_e2e.csv"
       ]
@@ -200,7 +200,7 @@
       "path": "wa-bridge/lib",
       "purpose": "Library code",
       "fileCount": 4,
-      "lastAccessed": 1776352920706,
+      "lastAccessed": 1776628872018,
       "keyFiles": [
         "env-loader.js",
         "inbound-webhook.js",
@@ -211,21 +211,119 @@
       "path": "wa-bridge/node_modules",
       "purpose": "Dependencies",
       "fileCount": 1,
-      "lastAccessed": 1776352920707,
+      "lastAccessed": 1776628872019,
       "keyFiles": []
-    },
-    "wa-bridge/tests": {
-      "path": "wa-bridge/tests",
-      "purpose": "Test files",
-      "fileCount": 4,
-      "lastAccessed": 1776352920707,
-      "keyFiles": [
-        "env-loader.test.js",
-        "inbound-webhook.test.js",
-        "process-guard.test.js"
-      ]
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "static/app.js",
+      "accessCount": 127,
+      "lastAccessed": 1776640330595,
+      "type": "file"
+    },
+    {
+      "path": "static/styles.css",
+      "accessCount": 58,
+      "lastAccessed": 1776640164233,
+      "type": "file"
+    },
+    {
+      "path": "services/campaign_service.py",
+      "accessCount": 46,
+      "lastAccessed": 1776640106214,
+      "type": "file"
+    },
+    {
+      "path": "templates/campaign.html",
+      "accessCount": 42,
+      "lastAccessed": 1776640199265,
+      "type": "file"
+    },
+    {
+      "path": "main.py",
+      "accessCount": 31,
+      "lastAccessed": 1776640124852,
+      "type": "directory"
+    },
+    {
+      "path": "",
+      "accessCount": 16,
+      "lastAccessed": 1776640322662,
+      "type": "directory"
+    },
+    {
+      "path": "templates/agent_settings.html",
+      "accessCount": 14,
+      "lastAccessed": 1776631191615,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_campaign_actions_ui_payloads.py",
+      "accessCount": 14,
+      "lastAccessed": 1776637559200,
+      "type": "file"
+    },
+    {
+      "path": "templates/index.html",
+      "accessCount": 13,
+      "lastAccessed": 1776635299989,
+      "type": "file"
+    },
+    {
+      "path": "templates",
+      "accessCount": 4,
+      "lastAccessed": 1776631072952,
+      "type": "directory"
+    },
+    {
+      "path": "templates/login.html",
+      "accessCount": 4,
+      "lastAccessed": 1776631163919,
+      "type": "file"
+    },
+    {
+      "path": "services",
+      "accessCount": 2,
+      "lastAccessed": 1776636386388,
+      "type": "directory"
+    },
+    {
+      "path": "models.py",
+      "accessCount": 2,
+      "lastAccessed": 1776638803157,
+      "type": "directory"
+    },
+    {
+      "path": "static",
+      "accessCount": 1,
+      "lastAccessed": 1776630358329,
+      "type": "directory"
+    },
+    {
+      "path": "static/index.js",
+      "accessCount": 1,
+      "lastAccessed": 1776630365681,
+      "type": "directory"
+    },
+    {
+      "path": "docs/plans/2026-04-19-accordion-campaign-flow-design.md",
+      "accessCount": 1,
+      "lastAccessed": 1776631927673,
+      "type": "file"
+    },
+    {
+      "path": "docs/plans/2026-04-19-accordion-campaign-flow.md",
+      "accessCount": 1,
+      "lastAccessed": 1776632232692,
+      "type": "file"
+    },
+    {
+      "path": "services/send_engine.py",
+      "accessCount": 1,
+      "lastAccessed": 1776636389308,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }
