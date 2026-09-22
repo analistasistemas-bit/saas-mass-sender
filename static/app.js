@@ -112,7 +112,20 @@
   const executionProgressPill = document.getElementById('execution-progress-pill');
   const executionProgressPillLabel = document.getElementById('execution-progress-pill-label');
   const toastRegion = document.getElementById('toast-region');
-  const stepItems = Array.from(document.querySelectorAll('.stepper-item'));
+  const stepItems = Array.from(document.querySelectorAll('[data-step-key]'));
+
+  // Accordion click handler — passos concluídos toggleam; ativo e bloqueado ignoram
+  document.querySelectorAll('[data-accordion-trigger]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const step = btn.closest('[data-step-key]');
+      if (!step) return;
+      if (step.dataset.stepState === 'blocked') return;
+      if (step.dataset.stepState === 'done') {
+        step.classList.toggle('is-open');
+      }
+    });
+  });
+
   const executionBarStorageKey = `campaign:${campaignId}:execution-bar-collapsed`;
   const SPEED_PRESETS = {
     conservative: {
@@ -197,7 +210,7 @@
   }
 
   const actionLabels = {
-    dryRun: 'Simular campanha',
+    dryRun: 'Revalidar base',
     testRun: 'Enviar teste',
     start: 'Iniciar campanha',
     pause: 'Pausar campanha',
@@ -792,7 +805,18 @@
   }
 
   function getPrimaryAction(uiState, currentStats) {
-    if (uiState === 'draft') return { key: 'dryRun', label: actionLabels.dryRun, description: 'Valide a base antes de qualquer disparo.' };
+    if (uiState === 'draft') {
+      const hasContacts = Number(currentStats.total || 0) > 0;
+      if (!hasContacts) {
+        return {
+          key: 'none',
+          label: 'Aguardando contatos',
+          description: 'Siga os passos abaixo: importe os contatos (passo 3) para liberar a validacao.',
+          disabled: true,
+        };
+      }
+      return { key: 'dryRun', label: 'Validar contatos', description: 'Contatos importados. Valide a base para liberar o teste e o envio.' };
+    }
     if (uiState === 'ready-awaiting-test') {
       return { key: 'testRun', label: actionLabels.testRun, description: 'Use uma amostra para confirmar mensagem, numero e entrega.' };
     }
@@ -813,7 +837,7 @@
   function getSecondaryActionConfigs(uiState, currentStats) {
     const items = [];
     if (uiState === 'ready-awaiting-test') items.push({ key: 'dryRun', label: actionLabels.dryRun });
-    if (uiState === 'ready-to-start') items.push({ key: 'dryRun', label: 'Simular novamente' });
+    if (uiState === 'ready-to-start') items.push({ key: 'dryRun', label: 'Revalidar base' });
     if (uiState === 'running') {
       items.push({ key: 'refresh', label: actionLabels.refresh });
       items.push({ key: 'showLogs', label: actionLabels.showLogs });
@@ -856,25 +880,45 @@
       Number(currentStats.sent || 0) > 0 ||
       Number(currentStats.failed || 0) > 0 ||
       uiState === 'completed';
-    const sending = uiState === 'running' || uiState === 'paused' || uiState === 'completed' || uiState === 'cancelled';
+    const connected = Boolean(session?.connected);
+    const afterDraft = uiState !== 'draft';
+    const sending = uiState === 'running' || uiState === 'paused' || uiState === 'recovering';
     const done = uiState === 'completed';
+    const pastTest = uiState === 'ready-to-send' || sending || done;
+
     return [
-      session?.connected ? 'done' : uiState === 'draft' ? 'active' : 'blocked',
-      hasContacts ? 'done' : uiState === 'draft' ? 'active' : 'blocked',
-      hasContacts ? 'done' : 'blocked',
-      tested ? 'done' : uiState === 'ready-awaiting-test' ? 'active' : hasContacts ? 'blocked' : 'blocked',
-      done ? 'done' : sending ? 'active' : 'blocked',
-      done ? 'done' : uiState === 'cancelled' ? 'blocked' : 'blocked',
+      // 0: Conectar WhatsApp
+      connected ? 'done' : 'active',
+      // 1: Preparar mensagem — done quando conectado OU quando campanha já passou do draft
+      (connected || afterDraft) ? 'done' : 'blocked',
+      // 2: Importar contatos — done quando tem contatos OU já passou do draft; active em qualquer draft sem contatos
+      (hasContacts || afterDraft) ? 'done' : uiState === 'draft' ? 'active' : 'blocked',
+      // 3: Validar base — active quando tem contatos + draft; done quando passou do draft
+      (afterDraft || tested) ? 'done' : (hasContacts && uiState === 'draft') ? 'active' : 'blocked',
+      // 4: Testar envio — active quando ready-awaiting-test; done quando passou dessa fase
+      pastTest ? 'done' : uiState === 'ready-awaiting-test' ? 'active' : 'blocked',
+      // 5: Configurar e enviar — active a partir de ready-to-send ou enviando
+      done ? 'done' : pastTest ? 'active' : 'blocked',
     ];
   }
 
   function renderStepper(uiState, currentStats, session) {
     const states = getStepperState(uiState, currentStats, session);
+    const statusLabels = { done: 'Concluído', active: 'Em andamento', blocked: '' };
     stepItems.forEach((item, index) => {
       const state = states[index] || 'blocked';
       item.dataset.stepState = state;
-      const dot = item.querySelector('.stepper-item__dot');
-      if (dot) dot.textContent = state === 'done' ? '✓' : String(index + 1);
+
+      const numEl = item.querySelector('.accordion-step__number');
+      if (numEl) numEl.textContent = state === 'done' ? '✓' : String(index + 1);
+
+      const statusEl = item.querySelector('.accordion-step__status');
+      if (statusEl) statusEl.textContent = statusLabels[state] || '';
+
+      const headerBtn = item.querySelector('[data-accordion-trigger]');
+      if (headerBtn) headerBtn.disabled = state === 'blocked';
+
+      if (state === 'active') item.classList.remove('is-open');
     });
   }
 
@@ -1021,9 +1065,17 @@
     }
 
     uploadSummary.innerHTML = `
-      <p class="text-sm font-medium text-ink">${currentStats.valid || 0} contato${Number(currentStats.valid || 0) > 1 ? 's' : ''} pronto${Number(currentStats.valid || 0) > 1 ? 's' : ''} para envio</p>
-      <p class="mt-1 text-sm text-muted">Base importada com ${currentStats.valid || 0} validos e ${currentStats.invalid || 0} invalidos.</p>
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-sm font-medium text-ink">${currentStats.valid || 0} contato${Number(currentStats.valid || 0) > 1 ? 's' : ''} pronto${Number(currentStats.valid || 0) > 1 ? 's' : ''} para envio</p>
+          <p class="mt-1 text-sm text-muted">Base importada com ${currentStats.valid || 0} validos e ${currentStats.invalid || 0} invalidos.</p>
+        </div>
+        <button type="button" id="alter-csv-button" class="secondary-button shrink-0">Alterar CSV</button>
+      </div>
     `;
+    document.getElementById('alter-csv-button')?.addEventListener('click', () => {
+      document.getElementById('csv-file-input')?.click();
+    });
   }
 
   function renderResults(currentStats, payload) {
@@ -1207,6 +1259,14 @@
         `;
   }
 
+  const stepperTransitionBar = document.getElementById('stepper-transition-bar');
+  function showStepperTransition() {
+    if (stepperTransitionBar) stepperTransitionBar.classList.add('is-active');
+  }
+  function hideStepperTransition() {
+    if (stepperTransitionBar) stepperTransitionBar.classList.remove('is-active');
+  }
+
   function setButtonLoading(button, label, active) {
     if (!button) return;
     if (active) {
@@ -1260,9 +1320,10 @@
     currentPrimaryAction = primary.key;
     primaryTitle.textContent = primary.label;
     primaryDescription.textContent = primary.description;
-    primaryRule.textContent = 'A tela mostra apenas a proxima acao dominante.';
+    if (primaryRule) primaryRule.textContent = 'A tela mostra apenas a proxima acao dominante.';
     actionInsightText.textContent = getNarrativeStatus(uiState, currentStats, bridgeState);
     primaryButton.textContent = primary.label;
+    primaryButton.disabled = !!primary.disabled;
 
     secondaryActions.innerHTML = '';
     getSecondaryActionConfigs(uiState, currentStats).forEach((action) => {
@@ -1320,24 +1381,40 @@
 
     contactsBody.innerHTML = items
       .map(
-        (c) => `
-          <tr>
-            <td class="px-3 py-2.5">${escapeHtml(c.id)}</td>
-            <td class="px-3 py-2.5">${escapeHtml(c.name)}</td>
-            <td class="px-3 py-2.5">${escapeHtml(c.phone_raw)}</td>
-            <td class="px-3 py-2.5">${escapeHtml(c.phone_e164 || '-')}</td>
-            <td class="px-3 py-2.5">${escapeHtml(c.email)}</td>
-            <td class="px-3 py-2.5">${renderContactStatus(c.status)}</td>
-            <td class="px-3 py-2.5">${escapeHtml(c.error_message || '-')}</td>
-            <td class="px-3 py-2.5">
-              ${
-                canDeleteContacts
-                  ? `<button type="button" class="table-action-button table-action-button--danger" data-contact-action="delete" data-contact-id="${escapeHtml(c.id)}" data-contact-name="${escapeHtml(c.name || 'Contato sem nome')}">Excluir</button>`
-                  : '<span class="text-xs text-muted">Bloqueado</span>'
-              }
-            </td>
-          </tr>
-        `,
+        (c) => {
+          const isInvalid = c.status === 'invalid';
+          const actionCell = canDeleteContacts
+            ? `<div class="flex flex-wrap gap-1">
+                ${isInvalid ? `<button type="button" class="table-action-button" data-contact-action="edit" data-contact-id="${escapeHtml(String(c.id))}" data-contact-phone="${escapeHtml(c.phone_raw || '')}">Editar</button>` : ''}
+                <button type="button" class="table-action-button table-action-button--danger" data-contact-action="delete" data-contact-id="${escapeHtml(String(c.id))}" data-contact-name="${escapeHtml(c.name || 'Contato sem nome')}">Excluir</button>
+              </div>`
+            : '<span class="text-xs text-muted">Bloqueado</span>';
+          return `
+            <tr>
+              <td class="px-3 py-2.5">${escapeHtml(String(c.id))}</td>
+              <td class="px-3 py-2.5">${escapeHtml(c.name)}</td>
+              <td class="px-3 py-2.5">${escapeHtml(c.phone_raw)}</td>
+              <td class="px-3 py-2.5">${escapeHtml(c.phone_e164 || '-')}</td>
+              <td class="px-3 py-2.5">${escapeHtml(c.email)}</td>
+              <td class="px-3 py-2.5">${renderContactStatus(c.status)}</td>
+              <td class="px-3 py-2.5">${escapeHtml(c.error_message || '-')}</td>
+              <td class="px-3 py-2.5">${actionCell}</td>
+            </tr>
+            ${isInvalid && canDeleteContacts ? `
+            <tr id="edit-row-${escapeHtml(String(c.id))}" class="hidden">
+              <td colspan="8" class="bg-press px-3 py-2.5">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs text-muted">Novo telefone:</span>
+                  <input type="text" id="edit-phone-${escapeHtml(String(c.id))}" value="${escapeHtml(c.phone_raw || '')}" placeholder="+55 81 99999-9999"
+                    class="w-44 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20" />
+                  <button type="button" class="secondary-button" data-contact-action="save-edit" data-contact-id="${escapeHtml(String(c.id))}">Salvar</button>
+                  <button type="button" class="secondary-button" data-contact-action="cancel-edit" data-contact-id="${escapeHtml(String(c.id))}">Cancelar</button>
+                  <span id="edit-error-${escapeHtml(String(c.id))}" class="text-xs text-danger hidden"></span>
+                </div>
+              </td>
+            </tr>` : ''}
+          `;
+        }
       )
       .join('');
   }
@@ -1364,6 +1441,31 @@
     } finally {
       clearActionStatusOverride();
       setButtonLoading(button, 'Removendo...', false);
+    }
+  }
+
+  async function updateContactPhone(contactId, phone, saveBtn) {
+    const errorEl = document.getElementById(`edit-error-${contactId}`);
+    if (errorEl) { errorEl.classList.add('hidden'); errorEl.textContent = ''; }
+    setButtonLoading(saveBtn, 'Salvando...', true);
+    try {
+      const body = new FormData();
+      body.append('phone', phone);
+      const response = await fetch(`/campaigns/${campaignId}/contacts/${contactId}/update-phone`, { method: 'POST', body });
+      if (response.status === 401) { redirectToLogin(); return; }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) {
+        if (errorEl) { errorEl.textContent = data.message || 'Erro ao salvar.'; errorEl.classList.remove('hidden'); }
+        return;
+      }
+      showToast('success', data.message || 'Telefone atualizado.');
+      const editRow = document.getElementById(`edit-row-${contactId}`);
+      if (editRow) editRow.classList.add('hidden');
+      await pollContacts();
+    } catch (error) {
+      if (errorEl) { errorEl.textContent = String(error.message || error); errorEl.classList.remove('hidden'); }
+    } finally {
+      setButtonLoading(saveBtn, 'Salvando...', false);
     }
   }
 
@@ -1394,6 +1496,7 @@
   }
 
   function renderUi() {
+    hideStepperTransition();
     const uiState = deriveCampaignUiState(stats, bridgeState);
     setStatusBadge(stats.status);
     setBridgeBadge(bridgeState);
@@ -1487,6 +1590,10 @@
       }
       if (!response.ok) return;
       const data = await response.json();
+      const contactsBody = document.getElementById('contacts-body');
+      if (contactsBody && contactsBody.querySelector('tr[id^="edit-row-"]:not(.hidden)')) {
+        return;
+      }
       renderContactsTable(data);
     } catch (_) {
       showToast('warn', 'Nao foi possivel atualizar a lista de contatos agora.');
@@ -1535,7 +1642,15 @@
   async function runCampaignAction(actionKey, button) {
     const configs = {
       dryRun: { url: `/campaigns/${campaignId}/dry-run`, method: 'POST', loading: 'Simulando...', success: 'Simulacao concluida.' },
-      testRun: { url: `/campaigns/${campaignId}/test-run`, method: 'POST', loading: 'Enviando teste...', success: 'Amostra enviada para confirmacao.' },
+      testRun: (() => {
+        const testPhoneInput = document.getElementById('test-phone-input');
+        const testPhoneError = document.getElementById('test-phone-error');
+        if (testPhoneError) { testPhoneError.textContent = ''; testPhoneError.classList.add('hidden'); }
+        const body = new URLSearchParams();
+        const customPhone = (testPhoneInput?.value || '').trim();
+        if (customPhone) body.set('test_phone', customPhone);
+        return { url: `/campaigns/${campaignId}/test-run`, method: 'POST', body, loading: 'Enviando teste...', success: 'Amostra enviada para confirmacao.' };
+      })(),
       start: { url: `/campaigns/${campaignId}/start`, method: 'POST', loading: 'Iniciando...', success: 'Campanha iniciada.' },
       pause: { url: `/campaigns/${campaignId}/pause`, method: 'POST', loading: 'Pausando...', success: 'Campanha pausada.' },
       resume: { url: `/campaigns/${campaignId}/resume`, method: 'POST', loading: 'Retomando...', success: 'Campanha retomada.' },
@@ -1586,6 +1701,7 @@
     }
 
     setButtonLoading(button, config.loading, true);
+    showStepperTransition();
     try {
       const response = await fetch(config.url, {
         method: config.method,
@@ -1609,7 +1725,19 @@
       await pollAll();
     } catch (error) {
       clearActionStatusOverride();
-      showToast('error', String(error.message || error));
+      hideStepperTransition();
+      if (actionKey === 'testRun') {
+        const testPhoneInput = document.getElementById('test-phone-input');
+        const testPhoneError = document.getElementById('test-phone-error');
+        if (testPhoneError && testPhoneInput?.value?.trim()) {
+          testPhoneError.textContent = String(error.message || error);
+          testPhoneError.classList.remove('hidden');
+        } else {
+          showToast('error', String(error.message || error));
+        }
+      } else {
+        showToast('error', String(error.message || error));
+      }
     } finally {
       clearActionStatusOverride();
       if (button === primaryButton && currentPrimaryAction !== actionKey) {
@@ -1625,6 +1753,7 @@
     event.preventDefault();
     const formData = new FormData(templateForm);
     setButtonLoading(saveTemplateButton, 'Salvando...', true);
+    showStepperTransition();
     setActionStatusOverride(operationalProcessingCopy.saveTemplate);
     try {
       const response = await fetch(templateForm.action, { method: 'POST', body: formData });
@@ -1640,6 +1769,7 @@
     } catch (error) {
       clearActionStatusOverride();
       showToast('error', String(error.message || 'Nao foi possivel salvar a mensagem agora.'));
+      hideStepperTransition();
     } finally {
       clearActionStatusOverride();
       setButtonLoading(saveTemplateButton, 'Salvando...', false);
@@ -1736,6 +1866,7 @@
     event.preventDefault();
     const formData = new FormData(uploadForm);
     setButtonLoading(uploadSubmitButton, 'Enviando arquivo...', true);
+    showStepperTransition();
     setActionStatusOverride(operationalProcessingCopy.uploadCsv);
     try {
       const response = await fetch(`/campaigns/${campaignId}/contacts/upload`, { method: 'POST', body: formData });
@@ -1765,6 +1896,7 @@
     } catch (error) {
       clearActionStatusOverride();
       showToast('error', String(error.message || 'Nao foi possivel importar o CSV agora.'));
+      hideStepperTransition();
     } finally {
       clearActionStatusOverride();
       setButtonLoading(uploadSubmitButton, 'Enviando arquivo...', false);
@@ -1849,27 +1981,49 @@
   });
 
   contactsBody?.addEventListener('click', async (event) => {
-    const target = event.target.closest('[data-contact-action="delete"]');
-    if (!target) return;
+    const btn = event.target.closest('[data-contact-action]');
+    if (!btn) return;
+    const action = btn.dataset.contactAction;
+    const contactId = btn.dataset.contactId;
+    if (!contactId) return;
 
     const allowed = ['draft', 'ready', 'paused'].includes(String(stats.status || '').toLowerCase());
-    if (!allowed) {
-      showToast('warn', 'Exclusao bloqueada durante envio ou apos finalizacao da campanha.');
+
+    if (action === 'edit') {
+      const editRow = document.getElementById(`edit-row-${contactId}`);
+      editRow?.classList.toggle('hidden');
+      document.getElementById(`edit-phone-${contactId}`)?.focus();
       return;
     }
 
-    const contactId = target.dataset.contactId;
-    const contactName = target.dataset.contactName || 'este contato';
-    if (!contactId) return;
+    if (action === 'cancel-edit') {
+      document.getElementById(`edit-row-${contactId}`)?.classList.add('hidden');
+      return;
+    }
 
-    openConfirm({
-      title: 'Excluir contato da campanha',
-      message: `O contato "${contactName}" sera removido desta campanha imediatamente.`,
-      onConfirm: async () => {
-        await deleteContactFromCampaign(contactId, target);
-        confirmModal?.close();
-      },
-    });
+    if (action === 'save-edit') {
+      const input = document.getElementById(`edit-phone-${contactId}`);
+      const phone = input?.value?.trim() || '';
+      if (!phone) return;
+      await updateContactPhone(contactId, phone, btn);
+      return;
+    }
+
+    if (action === 'delete') {
+      if (!allowed) {
+        showToast('warn', 'Exclusao bloqueada durante envio ou apos finalizacao da campanha.');
+        return;
+      }
+      const contactName = btn.dataset.contactName || 'este contato';
+      openConfirm({
+        title: 'Excluir contato da campanha',
+        message: `O contato "${contactName}" sera removido desta campanha imediatamente.`,
+        onConfirm: async () => {
+          await deleteContactFromCampaign(contactId, btn);
+          confirmModal?.close();
+        },
+      });
+    }
   });
 
   clearImportedContactsButton?.addEventListener('click', () => {
@@ -2041,7 +2195,6 @@
     confirmModal?.close();
   });
 
-  renderUi();
   bindStatusFilter();
   pollAll();
   window.addEventListener('resize', () => {

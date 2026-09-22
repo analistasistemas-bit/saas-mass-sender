@@ -26,34 +26,78 @@
               press: 'var(--bg-press)',
             },
             fontFamily: {
-              sans: ['Inter', 'SpotifyMixUI', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif'],
             },
           },
         },
       };
     </script>
     <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+      .login-bg {
+        background-color: var(--bg-base);
+        background-image:
+          radial-gradient(ellipse 60% 40% at 50% 0%, rgba(62, 207, 142, 0.07) 0%, transparent 70%);
+      }
+      .login-card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: 16px;
+        box-shadow: 0 0 0 1px rgba(62,207,142,0.04), 0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+      }
+      .login-monogram {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--brand-accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #000;
+        letter-spacing: -0.5px;
+        flex-shrink: 0;
+      }
+    </style>
   </head>
-  <body class="flex min-h-screen items-center justify-center bg-shell text-ink">
-    <main class="w-full max-w-sm rounded-xl border border-line bg-surface p-6">
-      <h1 class="text-xl font-bold text-ink">Mass Sender</h1>
-      <p class="mt-1 text-sm text-muted">Informe a senha para acessar o painel.</p>
-      {% if error %}
-      <div class="mt-4 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{{ error }}</div>
-      {% endif %}
-      <form method="post" action="/login" class="mt-6 space-y-4">
-        <label class="block space-y-1.5">
-          <span class="text-sm font-medium text-muted">Senha</span>
-          <input
-            type="password"
-            name="password"
-            required
-            placeholder="Digite sua senha"
-            class="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
-          />
-        </label>
-        <button type="submit" class="primary-button w-full justify-center">Entrar</button>
-      </form>
+  <body class="login-bg flex min-h-screen items-center justify-center text-ink">
+    <main class="w-full max-w-xs px-4">
+      <div class="login-card p-8">
+
+        <div class="flex items-center gap-3 mb-8">
+          <div class="login-monogram">MS</div>
+          <div>
+            <p class="text-base font-semibold text-ink leading-tight">Mass Sender</p>
+            <p class="text-xs text-muted leading-tight mt-0.5">Painel de envios</p>
+          </div>
+        </div>
+
+        <div class="mb-6">
+          <h1 class="text-lg font-semibold text-ink">Acesso restrito</h1>
+          <p class="mt-1 text-sm text-muted">Informe a senha para continuar.</p>
+        </div>
+
+        {% if error %}
+        <div class="mb-5 rounded-lg border border-danger/20 bg-danger/5 px-3 py-2.5 text-sm text-danger">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login" class="space-y-4">
+          <label class="block space-y-1.5">
+            <span class="text-xs font-medium uppercase tracking-wide text-muted">Senha</span>
+            <input
+              type="password"
+              name="password"
+              required
+              autofocus
+              placeholder="••••••••"
+              class="w-full rounded-lg border border-line bg-press px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20"
+            />
+          </label>
+          <button type="submit" class="primary-button w-full justify-center">Entrar</button>
+        </form>
+
+      </div>
     </main>
     <script src="/static/common.js"></script>
   </body>

@@ -26,7 +26,7 @@
               press: 'var(--bg-press)',
             },
             fontFamily: {
-              sans: ['Inter', 'SpotifyMixUI', 'system-ui', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif'],
             },
             boxShadow: {
               panel: 'var(--shadow-medium)',
@@ -38,8 +38,9 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body class="min-h-screen bg-shell text-ink">
-    <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-8 px-4 py-8 lg:px-8" data-ops-page="index">
+    <main class="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-8" data-ops-page="index">
 
+      {% set STATUS_PT = {'draft': 'Rascunho', 'ready': 'Pronta', 'running': 'Em envio', 'paused': 'Pausada', 'completed': 'Concluída', 'cancelled': 'Cancelada'} %}
       <header class="flex items-start justify-between gap-4">
         <div class="space-y-1">
           <h1 class="text-[28px] font-bold tracking-tight text-ink">Campanhas</h1>
@@ -72,7 +73,8 @@
             </div>
             <form method="post" action="/logout">
               <button
-                type="submit"
+                type="button"
+                onclick="this.closest('form').submit()"
                 class="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger transition hover:bg-press"
                 role="menuitem"
               >
@@ -112,7 +114,7 @@
           <div class="flex flex-col gap-4">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p class="text-[13px] font-medium text-[#b3b3b3]">Canal WhatsApp</p>
+                <p class="text-[13px] font-medium text-muted">Canal WhatsApp</p>
                 <h2 class="mt-1 text-[18px] font-bold text-ink">Conexao do numero</h2>
               </div>
               <span id="bridge-badge" class="status-badge status-badge--info">Verificando...</span>
@@ -171,7 +173,7 @@
         <article class="rounded-xl border border-line bg-surface p-6">
           <div class="flex h-full flex-col justify-between gap-5">
             <div class="space-y-2">
-              <p class="text-[13px] font-medium text-[#b3b3b3]">Nova campanha</p>
+              <p class="text-[13px] font-medium text-muted">Nova campanha</p>
               <h2 class="text-[18px] font-bold text-ink">Criar campanha</h2>
               <p class="text-sm text-muted">
                 O sistema cria o rascunho e leva voce direto para a tela de configuracao e envio.
@@ -217,18 +219,19 @@
 
         <div id="campaigns-grid" class="grid gap-5 xl:grid-cols-3 md:grid-cols-2{% if not campaigns %} hidden{% endif %}">
           {% for c in campaigns %}
+          {% set pct = [[((c.sent_count / c.valid_contacts) * 100) | int, 100] | min, 0] | max if c.valid_contacts > 0 else 0 %}
           <article
-            class="group rounded-xl border border-line bg-surface p-6 transition-colors hover:border-brand/30"
+            class="group rounded-xl border border-line bg-surface p-5 transition-colors hover:border-brand/30"
             data-campaign-card
             data-campaign-id="{{ c.id }}"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
-                <p class="text-[11px] font-semibold uppercase tracking-wider text-muted">Campanha {{ c.id }}</p>
-                <h3 class="mt-1 text-[16px] font-bold text-ink">{{ c.name }}</h3>
+                <p class="text-[11px] font-medium text-muted">Campanha #{{ c.id }}</p>
+                <h3 class="mt-0.5 text-[15px] font-semibold text-ink leading-snug">{{ c.name }}</h3>
               </div>
               <div class="flex shrink-0 flex-col items-end gap-2 self-start">
-                <span class="status-badge" data-state="{{ c.status }}">{{ c.status }}</span>
+                <span class="status-badge" data-state="{{ c.status }}">{{ STATUS_PT.get(c.status, c.status) }}</span>
                 {% if c.status != 'running' %}
                 <button
                   type="button"
@@ -242,25 +245,35 @@
                 {% endif %}
               </div>
             </div>
-            <a href="/campaigns/{{ c.id }}" class="mt-3 block">
-              <p class="text-[13px] text-muted">Configure, teste e acompanhe o envio desta campanha.</p>
-              <dl class="mt-4 flex gap-4 text-sm">
-                <div class="flex-1 rounded-lg border border-line bg-press p-3">
-                  <dt class="text-[11px] font-medium text-[#b3b3b3]">Validos</dt>
-                  <dd class="mt-0.5 text-[20px] font-bold text-ink">{{ c.valid_contacts }}</dd>
+
+            <a href="/campaigns/{{ c.id }}" class="mt-4 block">
+              <dl class="flex gap-3 text-sm">
+                <div class="flex-1 rounded-lg border border-line bg-press px-3 py-2.5">
+                  <dt class="text-[11px] font-medium text-muted">Válidos</dt>
+                  <dd class="mt-0.5 text-[18px] font-bold text-ink">{{ c.valid_contacts }}</dd>
                 </div>
-                <div class="flex-1 rounded-lg border border-line bg-press p-3">
-                  <dt class="text-[11px] font-medium text-[#b3b3b3]">Enviados</dt>
-                  <dd class="mt-0.5 text-[20px] font-bold text-ink">{{ c.sent_count }}</dd>
+                <div class="flex-1 rounded-lg border border-line bg-press px-3 py-2.5">
+                  <dt class="text-[11px] font-medium text-muted">Enviados</dt>
+                  <dd class="mt-0.5 text-[18px] font-bold text-ink">{{ c.sent_count }}</dd>
                 </div>
-                <div class="flex-1 rounded-lg border border-line bg-press p-3">
-                  <dt class="text-[11px] font-medium text-[#b3b3b3]">Falhas</dt>
-                  <dd class="mt-0.5 text-[20px] font-bold text-ink">{{ c.failed_count }}</dd>
+                <div class="flex-1 rounded-lg border border-line bg-press px-3 py-2.5">
+                  <dt class="text-[11px] font-medium text-muted">Falhas</dt>
+                  <dd class="mt-0.5 text-[18px] font-bold {% if c.failed_count > 0 %}text-danger{% else %}text-ink{% endif %}">{{ c.failed_count }}</dd>
                 </div>
               </dl>
-              <div class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand">
-                Abrir campanha
-                <span aria-hidden="true" class="transition-transform group-hover:translate-x-0.5">→</span>
+
+              <div class="mt-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] font-medium text-muted">Progresso</span>
+                  <span class="text-[11px] font-semibold text-muted">{{ pct }}%</span>
+                </div>
+                <div class="overflow-hidden rounded-full bg-elevated h-1.5">
+                  <div class="h-full rounded-full bg-brand transition-all" style="width: {{ pct }}%"></div>
+                </div>
+              </div>
+
+              <div class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-brand">
+                Abrir campanha →
               </div>
             </a>
           </article>

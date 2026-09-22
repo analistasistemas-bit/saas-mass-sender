@@ -20,6 +20,7 @@ from models import AgentSpreadsheetUpload, Campaign, Contact, SendLog
 from schemas import CampaignCreate, TemplateUpdate
 from services.campaign_service import (
     add_manual_contact,
+    update_contact_phone,
     build_activity_payload,
     build_results_payload,
     cancel_campaign,
@@ -73,6 +74,7 @@ from services.whatsapp import (
 )
 from utils.config import load_app_env
 from utils.message_compose import render_test_run_message
+from utils.phone import normalize_br_phone
 
 load_app_env()
 
@@ -1079,6 +1081,12 @@ def delete_contact_route(campaign_id: int, contact_id: int, db: Session = Depend
     return JSONResponse(result, status_code=200 if result.get('ok') else 400)
 
 
+@app.post('/campaigns/{campaign_id}/contacts/{contact_id}/update-phone', dependencies=[Depends(require_auth)])
+def update_contact_phone_route(campaign_id: int, contact_id: int, phone: str = Form(...), db: Session = Depends(get_db)):
+    result = update_contact_phone(db, campaign_id, contact_id, phone)
+    return JSONResponse(result, status_code=200 if result.get('ok') else 400)
+
+
 @app.post('/campaigns/{campaign_id}/contacts/delete-imported', dependencies=[Depends(require_auth)])
 def delete_imported_contacts_route(campaign_id: int, db: Session = Depends(get_db)):
     result = delete_imported_contacts_from_campaign(db, campaign_id)
@@ -1091,7 +1099,7 @@ def dry_run_route(campaign_id: int, db: Session = Depends(get_db)):
 
 
 @app.post('/campaigns/{campaign_id}/test-run', dependencies=[Depends(require_auth)])
-async def test_run_route(campaign_id: int, sample_size: int = Form(1), db: Session = Depends(get_db)):
+async def test_run_route(campaign_id: int, sample_size: int = Form(1), test_phone: Optional[str] = Form(None), db: Session = Depends(get_db)):
     campaign = get_campaign_or_404(db, campaign_id)
     refresh_campaign_counters(db, campaign_id)
     db.refresh(campaign)
@@ -1108,7 +1116,14 @@ async def test_run_route(campaign_id: int, sample_size: int = Form(1), db: Sessi
     if not client.configured:
         return JSONResponse({'ok': False, 'message': 'Backend WhatsApp não configurado'}, status_code=400)
 
-    test_destination, destination_note = await resolve_test_run_destination(client)
+    custom_phone = (test_phone or '').strip()
+    if custom_phone:
+        ok, phone_e164, err = normalize_br_phone(custom_phone)
+        if not ok or not phone_e164:
+            return JSONResponse({'ok': False, 'message': err or 'Telefone de teste inválido para o padrão BR (+55).'}, status_code=400)
+        test_destination, destination_note = phone_e164, f'amostras enviadas para o número de teste {phone_e164}'
+    else:
+        test_destination, destination_note = await resolve_test_run_destination(client)
     prior_test_attempts = int(
         db.scalar(
             select(func.count(SendLog.id)).where(
