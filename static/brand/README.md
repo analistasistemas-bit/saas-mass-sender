@@ -16,12 +16,12 @@ Os arquivos em `png/` são derivados dos masters acima. Use-os quando SVG não f
 
 | Arquivo | Uso | Largura máxima recomendada |
 |---|---|---:|
-| `mass-sender-cofre-symbol-512.png` | avatar e ícone de app | 512 px |
-| `mass-sender-cofre-horizontal-1024.png` | cabeçalho digital | 1024 px |
-| `mass-sender-cofre-horizontal-2048.png` | impressão e mídia de alta densidade | 2048 px |
-| `mass-sender-cofre-stacked-1024.png` | posts e composições verticais | 1024 px |
+| `mass-sender-cofre-symbol-{512,1024,2048}.png` | avatar, ícone de app e exportação de alta densidade | tamanho do arquivo |
+| `mass-sender-cofre-horizontal-{512,1024,2048}.png` | cabeçalho digital e mídia horizontal | tamanho do arquivo |
+| `mass-sender-cofre-stacked-{512,1024,2048}.png` | posts e composições verticais | tamanho do arquivo |
 | `daludi-logo-digital.png` | cabeçalho e assinatura corporativa | 960 px |
 | `favicon-16.png`, `favicon-32.png`, `favicon-48.png` | navegador e atalhos | tamanho do arquivo |
 | `favicon-180.png`, `favicon-512.png` | mobile e ícone de app | tamanho do arquivo |
+| `../../favicon.ico` | favicon legado para navegadores | 512 px incorporados |
 
 `daludi-logo-digital.png` é apenas um recorte digital do PNG oficial para layout. Preserve `daludi-logo.png` como a fonte imutável.

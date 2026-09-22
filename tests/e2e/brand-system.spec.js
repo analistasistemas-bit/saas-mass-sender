@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 test('aplica a hierarquia Daludi e Mass Sender no login e dashboard', async ({ page }) => {
   await page.goto('/login');
   await expect(page.getByTestId('daludi-masthead')).toBeVisible();
-  await expect(page.getByAltText('Daludi')).toHaveAttribute('src', '/static/brand/daludi-logo.png');
+  await expect(page.getByAltText('Daludi')).toHaveAttribute('src', '/static/brand/png/daludi-logo-digital.png');
   await expect(page.getByTestId('mass-sender-product-mark').getByAltText('Mass Sender')).toHaveAttribute(
     'src',
     '/static/brand/mass-sender-cofre-horizontal.svg',
