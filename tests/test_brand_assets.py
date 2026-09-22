@@ -17,6 +17,14 @@ def test_brand_source_files_exist_and_svg_lockups_are_named():
         assert "by Daludi" not in contents
 
 
+def test_brand_has_ice_and_monochrome_lockups_for_marketing_contexts():
+    for lockup in ("symbol", "horizontal", "stacked"):
+        assert (BRAND / f"mass-sender-cofre-{lockup}-ice.svg").is_file()
+        assert (BRAND / f"mass-sender-cofre-{lockup}-mono.svg").is_file()
+        assert (BRAND / "png" / f"mass-sender-cofre-{lockup}-ice-2048.png").is_file()
+        assert (BRAND / "png" / f"mass-sender-cofre-{lockup}-mono-2048.png").is_file()
+
+
 def test_brand_tokens_and_primitives_are_declared():
     css = Path("static/styles.css").read_text(encoding="utf-8")
     for token in ("--brand-signal: #2BCAC2", "--semantic-success: #C5FF64", "--font-display"):

@@ -10,6 +10,8 @@ Daludi é a marca corporativa. No produto, ela aparece centralizada no masthead 
 
 O símbolo Mass Sender é o **Cofre**: aro octogonal turquesa, miolo escuro e núcleo lime. Use SVG sempre que possível; use PNG somente onde SVG não for aceito.
 
+Em fundo escuro, use a versão colorida ou `*-ice`. Em fundo claro e impressão, use `*-mono`. Não use a versão colorida em impressão monocromática.
+
 - Mantenha ao redor do Cofre uma área livre igual à largura do núcleo lime.
 - Não reduza o Cofre abaixo de 32 px.
 - Não estique, gire, redesenhe ou aplique sombra, glow ou gradiente nos logos.

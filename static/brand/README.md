@@ -10,6 +10,8 @@ O Mass Sender usa o símbolo Cofre. Mantenha uma área livre equivalente à larg
 | `mass-sender-cofre-horizontal.svg` | cabeçalhos, login e campanhas horizontais |
 | `mass-sender-cofre-stacked.svg` | posts e composições verticais |
 
+As versões `*-ice.svg` usam gelo (`#EEF8F7`) para fundo escuro. As versões `*-mono.svg` usam preto e branco para fundo claro e impressão. Cada uma possui PNG 2048 correspondente em `png/`.
+
 ## PNGs prontos para uso
 
 Os arquivos em `png/` são derivados dos masters acima. Use-os quando SVG não for aceito; não recrie versões com cor, proporção ou efeitos diferentes.
