@@ -9,3 +9,19 @@ O Mass Sender usa o símbolo Cofre. Mantenha uma área livre equivalente à larg
 | `mass-sender-cofre-symbol.svg` | favicon, avatar e navegação compacta |
 | `mass-sender-cofre-horizontal.svg` | cabeçalhos, login e campanhas horizontais |
 | `mass-sender-cofre-stacked.svg` | posts e composições verticais |
+
+## PNGs prontos para uso
+
+Os arquivos em `png/` são derivados dos masters acima. Use-os quando SVG não for aceito; não recrie versões com cor, proporção ou efeitos diferentes.
+
+| Arquivo | Uso | Largura máxima recomendada |
+|---|---|---:|
+| `mass-sender-cofre-symbol-512.png` | avatar e ícone de app | 512 px |
+| `mass-sender-cofre-horizontal-1024.png` | cabeçalho digital | 1024 px |
+| `mass-sender-cofre-horizontal-2048.png` | impressão e mídia de alta densidade | 2048 px |
+| `mass-sender-cofre-stacked-1024.png` | posts e composições verticais | 1024 px |
+| `daludi-logo-digital.png` | cabeçalho e assinatura corporativa | 960 px |
+| `favicon-16.png`, `favicon-32.png`, `favicon-48.png` | navegador e atalhos | tamanho do arquivo |
+| `favicon-180.png`, `favicon-512.png` | mobile e ícone de app | tamanho do arquivo |
+
+`daludi-logo-digital.png` é apenas um recorte digital do PNG oficial para layout. Preserve `daludi-logo.png` como a fonte imutável.

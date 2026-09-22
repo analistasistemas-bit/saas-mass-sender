@@ -23,3 +23,20 @@ def test_brand_tokens_and_primitives_are_declared():
         assert token in css
     for selector in (".brand-masthead", ".brand-product-lockup", ".brand-logo-fallback"):
         assert selector in css
+
+
+def test_png_export_inventory_is_complete():
+    expected = {
+        "mass-sender-cofre-symbol-512.png",
+        "mass-sender-cofre-horizontal-1024.png",
+        "mass-sender-cofre-horizontal-2048.png",
+        "mass-sender-cofre-stacked-1024.png",
+        "daludi-logo-digital.png",
+        "favicon-16.png",
+        "favicon-32.png",
+        "favicon-48.png",
+        "favicon-180.png",
+        "favicon-512.png",
+    }
+    actual = {path.name for path in (BRAND / "png").glob("*.png")}
+    assert expected <= actual
