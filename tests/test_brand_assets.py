@@ -40,3 +40,8 @@ def test_png_export_inventory_is_complete():
     }
     actual = {path.name for path in (BRAND / "png").glob("*.png")}
     assert expected <= actual
+
+
+def test_readme_links_to_brandbook():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert "docs/BRANDBOOK.md" in readme
