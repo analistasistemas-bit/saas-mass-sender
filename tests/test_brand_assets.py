@@ -28,9 +28,14 @@ def test_brand_tokens_and_primitives_are_declared():
 def test_png_export_inventory_is_complete():
     expected = {
         "mass-sender-cofre-symbol-512.png",
+        "mass-sender-cofre-symbol-1024.png",
+        "mass-sender-cofre-symbol-2048.png",
+        "mass-sender-cofre-horizontal-512.png",
         "mass-sender-cofre-horizontal-1024.png",
         "mass-sender-cofre-horizontal-2048.png",
+        "mass-sender-cofre-stacked-512.png",
         "mass-sender-cofre-stacked-1024.png",
+        "mass-sender-cofre-stacked-2048.png",
         "daludi-logo-digital.png",
         "favicon-16.png",
         "favicon-32.png",
@@ -40,6 +45,7 @@ def test_png_export_inventory_is_complete():
     }
     actual = {path.name for path in (BRAND / "png").glob("*.png")}
     assert expected <= actual
+    assert (Path("static") / "favicon.ico").is_file()
 
 
 def test_readme_links_to_brandbook():
