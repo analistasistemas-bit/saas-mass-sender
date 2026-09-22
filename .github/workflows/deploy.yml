@@ -39,6 +39,10 @@ jobs:
             APP_DIR="/opt/mass-sender"
 
             echo "=== [1/4] Baixando codigo mais recente ==="
+            DEPLOY_USER="$(id -un)"
+            DEPLOY_GROUP="$(id -gn)"
+            echo "Ajustando dono do checkout para ${DEPLOY_USER}:${DEPLOY_GROUP}"
+            sudo -n chown -R "${DEPLOY_USER}:${DEPLOY_GROUP}" "$APP_DIR"
             cd "$APP_DIR"
             git fetch --all
             git reset --hard origin/main
