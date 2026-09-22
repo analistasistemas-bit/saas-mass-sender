@@ -29,6 +29,34 @@ def build_session():
     return Session()
 
 
+def test_stats_payload_cache_isolated_between_sqlite_engines():
+    _campaign_svc._stats_cache.clear()
+    first = build_session()
+    first_campaign = Campaign(name='Primeira base', message_template='Oi {{nome}}', status='ready')
+    first.add(first_campaign)
+    first.commit()
+    assert stats_payload(first, first_campaign.id)['sent'] == 0
+
+    second = build_session()
+    second_campaign = Campaign(name='Segunda base', message_template='Oi {{nome}}', status='ready')
+    second.add(second_campaign)
+    second.commit()
+    second.add(
+        Contact(
+            campaign_id=second_campaign.id,
+            name='Enviado',
+            phone_raw='+5581999999999',
+            phone_e164='+5581999999999',
+            email='enviado@example.com',
+            status='sent',
+            sent_at=datetime.now(timezone.utc),
+        )
+    )
+    second.commit()
+
+    assert stats_payload(second, second_campaign.id)['sent'] == 1
+
+
 def test_dry_run_returns_friendly_empty_payload_for_completed_campaign():
     session = build_session()
     campaign = Campaign(name='Lote', message_template='Oi {{nome}}', status='completed')
@@ -526,8 +554,8 @@ def test_stats_payload_exposes_observed_performance_and_estimates():
     assert payload['performance']['observed_seconds_per_contact'] == 60
     assert payload['performance']['observed_contacts_per_minute'] == 1.0
     assert payload['estimates']['remaining_seconds_observed'] == 120
-    assert payload['estimates']['configured_batch_pause_min'] == 5
-    assert payload['estimates']['configured_batch_pause_max'] == 10
+    assert payload['estimates']['configured_batch_pause_min'] == 25
+    assert payload['estimates']['configured_batch_pause_max'] == 40
     assert 'Config.:' in payload['estimates']['label_configured_pace']
 
 

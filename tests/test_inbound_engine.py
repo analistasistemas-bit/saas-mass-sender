@@ -40,6 +40,12 @@ async def _fake_handoff(db, conversation_id, reason, client):
     await client.send_text(conversation.customer_phone, 'Vou passar seu atendimento para meu gerente.')
 
 
+def test_engine_constructor_does_not_require_a_running_event_loop():
+    worker = inbound_engine.InboundEngine()
+
+    assert worker._event is None
+
+
 def test_process_conversation_replies_and_persists_outbound(monkeypatch):
     engine = create_engine('sqlite:///:memory:', future=True)
     Session = sessionmaker(bind=engine, future=True)

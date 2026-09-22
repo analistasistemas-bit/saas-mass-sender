@@ -1400,7 +1400,7 @@ def stats_payload(
     runtime_batch_size: int | None = None,
     service_health: dict | None = None,
 ) -> dict:
-    cache_key = f"{campaign_id}_{runtime_batch_size}"
+    cache_key = f"{id(db.get_bind())}_{campaign_id}_{runtime_batch_size}"
     now_ts = time.time()
     cached = _stats_cache.get(cache_key)
     if cached and (now_ts - cached[0] < 3.0):
