@@ -1,18 +1,20 @@
 :root {
-  /* SaaS Neutral Dark */
-  --bg-base: #0a0a0a;
-  --bg-surface: #111111;
-  --bg-elevated: #1c1c1c;
-  --bg-press: #161616;
-  --brand-accent: #3ecf8e;
-  --brand-accent-hover: #2db87a;
+  --bg-base: #0B1112;
+  --bg-surface: #121B1D;
+  --bg-elevated: #182527;
+  --bg-press: #10191B;
+  --brand-signal: #2BCAC2;
+  --brand-accent: var(--brand-signal);
+  --brand-accent-hover: #62DED7;
+  --semantic-success: #C5FF64;
+  --font-display: 'Manrope', 'Inter', system-ui, sans-serif;
 
-  --text-base: #ededed;
-  --text-subdued: #949494;
+  --text-base: #EEF8F7;
+  --text-subdued: #91A5A6;
   --text-bright: #ffffff;
 
-  --semantic-negative: #f3727f;
-  --semantic-warning: #ffa42b;
+  --semantic-negative: #FF7F8A;
+  --semantic-warning: #F4BD63;
   --semantic-announcement: #539df5;
 
   --border-subtle: #262626;
@@ -36,6 +38,11 @@ body {
   margin: 0;
   overflow-x: clip;
 }
+
+.brand-masthead { min-height: 92px; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border-subtle); }
+.brand-product-lockup { display: inline-flex; align-items: center; gap: .75rem; }
+.brand-logo-fallback { color: var(--text-base); font-weight: 700; }
+@media (max-width: 640px) { .brand-masthead { min-height: 76px; } }
 
 html.is-link-loading,
 html.is-link-loading * {
